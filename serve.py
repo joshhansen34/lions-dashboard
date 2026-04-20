@@ -190,7 +190,7 @@ if __name__ == "__main__":
     print("  Press Ctrl+C to stop")
     print()
     try:
-        HTTPServer(("localhost", PORT), Handler).serve_forever()
+        HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
     except KeyboardInterrupt:
         print("\n  Server stopped.")
         sys.exit(0)
