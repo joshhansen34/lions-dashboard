@@ -57,12 +57,17 @@ PORT       = int(os.environ.get("PORT", 8765))
 SERVE_DIR  = os.path.dirname(os.path.abspath(__file__))
 
 MIME_TYPES = {
-    '.html': 'text/html',
-    '.css':  'text/css',
-    '.js':   'application/javascript',
-    '.json': 'application/json',
-    '.ico':  'image/x-icon',
-    '.png':  'image/png',
+    '.html':  'text/html',
+    '.css':   'text/css',
+    '.js':    'application/javascript',
+    '.mjs':   'application/javascript',
+    '.json':  'application/json',
+    '.ico':   'image/x-icon',
+    '.png':   'image/png',
+    '.svg':   'image/svg+xml',
+    '.woff':  'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf':   'font/ttf',
 }
 
 # ── Member Cache ───────────────────────────────────────────────────────────────
@@ -331,6 +336,13 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        # Attendance app — no auth required (static files + limited member data only)
+        if self.path == '/attendance/members':
+            self.handle_attendance_members()
+            return
+        if self.path in ('/attendance', '/attendance/') or self.path.startswith('/attendance/'):
+            self.serve_file()
+            return
         if not self.check_auth():
             return
         if self.path == '/members' or self.path.startswith('/members?'):
@@ -362,6 +374,24 @@ class Handler(BaseHTTPRequestHandler):
             body = self.rfile.read(length) if length else None
             self.proxy_request("PATCH", body)
 
+    def handle_attendance_members(self):
+        status, members, loaded_at = get_cache_state()
+        if status == 'loading':
+            self.send_json({'status': 'loading'})
+            return
+        slim = []
+        for m in members:
+            if m.get('exitStatus'):
+                continue
+            slim.append({
+                'id':               m['id'],
+                'firstName':        m['firstName'],
+                'lastName':         m['lastName'],
+                'cash':             m.get('cash', False),
+                'membershipStatus': m.get('membershipStatus', ''),
+            })
+        self.send_json({'status': 'ready', 'members': slim, 'count': len(slim)})
+
     def handle_members_get(self):
         status, members, loaded_at = get_cache_state()
         if status == 'loading':
@@ -378,6 +408,11 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split('?')[0]
         if path == '/':
             path = '/lions-dashboard.html'
+        # Route attendance app to its built dist folder
+        if path in ('/attendance', '/attendance/'):
+            path = '/attendance/dist/index.html'
+        elif path.startswith('/attendance/'):
+            path = '/attendance/dist/' + path[len('/attendance/'):]
         filepath = os.path.join(SERVE_DIR, path.lstrip('/'))
         if not os.path.exists(filepath) or not os.path.isfile(filepath):
             self.send_response(404)

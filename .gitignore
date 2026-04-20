@@ -13,6 +13,11 @@ __pycache__/
 dist/
 build/
 
+# Node
+node_modules/
+!attendance/dist/
+!attendance/dist/**
+
 # Environment / secrets
 .env
 *.env
