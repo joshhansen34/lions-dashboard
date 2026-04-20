@@ -12,18 +12,27 @@ import urllib.error
 import json
 import sys
 import os
+import base64
 
-NEON_BASE = "https://api.neoncrm.com"
-PORT = 8765
-SERVE_DIR = os.path.dirname(os.path.abspath(__file__))
+try:
+    import config
+except ImportError:
+    print("\n  ERROR: config.py not found.")
+    print("  Copy config.py.example to config.py and fill in your credentials.\n")
+    sys.exit(1)
+
+NEON_BASE  = "https://api.neoncrm.com"
+NEON_AUTH  = base64.b64encode(f"{config.NEON_ORG_ID}:{config.NEON_API_KEY}".encode()).decode()
+PORT       = 8765
+SERVE_DIR  = os.path.dirname(os.path.abspath(__file__))
 
 MIME_TYPES = {
     '.html': 'text/html',
-    '.css': 'text/css',
-    '.js': 'application/javascript',
+    '.css':  'text/css',
+    '.js':   'application/javascript',
     '.json': 'application/json',
-    '.ico': 'image/x-icon',
-    '.png': 'image/png',
+    '.ico':  'image/x-icon',
+    '.png':  'image/png',
 }
 
 class Handler(BaseHTTPRequestHandler):
@@ -36,33 +45,59 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
 
+    def check_auth(self):
+        auth = self.headers.get("Authorization", "")
+        if not auth.startswith("Basic "):
+            self._demand_auth()
+            return False
+        try:
+            decoded = base64.b64decode(auth[6:]).decode("utf-8")
+            username, password = decoded.split(":", 1)
+        except Exception:
+            self._demand_auth()
+            return False
+        if config.USERS.get(username) == password:
+            return True
+        self._demand_auth()
+        return False
+
+    def _demand_auth(self):
+        self.send_response(401)
+        self.send_header("WWW-Authenticate", 'Basic realm="Shakopee Lions Club"')
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"Login required")
+
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_cors_headers()
         self.end_headers()
 
     def do_GET(self):
-        # Proxy Neon API calls
+        if not self.check_auth():
+            return
         if self.path.startswith('/v2/'):
             self.proxy_request("GET", None)
             return
-        # Serve local files
         self.serve_file()
 
     def do_PATCH(self):
+        if not self.check_auth():
+            return
         if self.path.startswith('/v2/'):
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length) if length else None
             self.proxy_request("PATCH", body)
 
     def do_POST(self):
+        if not self.check_auth():
+            return
         if self.path.startswith('/v2/'):
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length) if length else None
             self.proxy_request("POST", body)
 
     def serve_file(self):
-        # Strip query string
         path = self.path.split('?')[0]
         if path == '/':
             path = '/lions-dashboard.html'
@@ -75,7 +110,7 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(b'Not found')
             return
 
-        ext = os.path.splitext(filepath)[1]
+        ext  = os.path.splitext(filepath)[1]
         mime = MIME_TYPES.get(ext, 'text/plain')
 
         with open(filepath, 'rb') as f:
@@ -89,11 +124,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def proxy_request(self, method, body):
         target = NEON_BASE + self.path
-        auth = self.headers.get("Authorization", "")
         print(f"\n  -> {method} {self.path}")
 
         req = urllib.request.Request(target, data=body, method=method)
-        req.add_header("Authorization", auth)
+        req.add_header("Authorization", f"Basic {NEON_AUTH}")
         req.add_header("Content-Type", "application/json")
         req.add_header("Accept", "application/json")
 
@@ -126,6 +160,7 @@ if __name__ == "__main__":
     print("  Shakopee Lions Club - Dashboard Server")
     print(f"  Open http://localhost:{PORT}/lions-dashboard.html in Safari")
     print(f"  Serving files from: {SERVE_DIR}")
+    print(f"  Users configured: {', '.join(config.USERS.keys())}")
     print("  Press Ctrl+C to stop")
     print()
     try:

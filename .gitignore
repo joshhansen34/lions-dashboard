@@ -18,6 +18,9 @@ build/
 *.env
 secrets.*
 
+# Local config (contains API keys and passwords)
+config.py
+
 # Claude local settings (may contain API keys)
 .claude/
 

@@ -273,39 +273,17 @@ let customFieldIds = {
   sponsor:    '86',
 };
 
-window.onload = () => {
-  const org = localStorage.getItem('lc_org');
-  const key = localStorage.getItem('lc_key');
-  if (org && key) { ORG_ID = org; API_KEY = key; showDashboard(); loadMembers(); }
-};
+window.onload = () => { showDashboard(); loadMembers(); };
 
-function authHeader() { return 'Basic ' + btoa(ORG_ID + ':' + API_KEY); }
 function showDashboard() { document.getElementById('setup-screen').style.display = 'none'; document.getElementById('dashboard').style.display = 'block'; }
 
 async function neonGet(path) {
-  return fetch('/v2' + path, { headers: { 'Authorization': authHeader(), 'Content-Type': 'application/json' } });
+  return fetch('/v2' + path, { headers: { 'Content-Type': 'application/json' } });
 }
 async function neonPatch(path, body) {
-  return fetch('/v2' + path, { method: 'PATCH', headers: { 'Authorization': authHeader(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  return fetch('/v2' + path, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 }
 
-async function connect() {
-  const org = document.getElementById('org-id-input').value.trim();
-  const key = document.getElementById('api-key-input').value.trim();
-  const errEl = document.getElementById('connect-error');
-  errEl.style.display = 'none';
-  if (!org || !key) { errEl.textContent = 'Both fields are required.'; errEl.style.display = 'block'; return; }
-  ORG_ID = org; API_KEY = key;
-  try {
-    const res = await neonGet('/accounts?userType=INDIVIDUAL&pageSize=1');
-    if (!res.ok) throw new Error();
-    localStorage.setItem('lc_org', org); localStorage.setItem('lc_key', key);
-    showDashboard(); loadMembers();
-  } catch(e) {
-    errEl.textContent = 'Could not connect. Check your org ID and API key.';
-    errEl.style.display = 'block'; ORG_ID = ''; API_KEY = '';
-  }
-}
 
 function setProgress(label, pct) {
   const el = document.getElementById('load-progress');

@@ -1,0 +1,14 @@
+# Shakopee Lions Club - Server Configuration
+# Copy this file to config.py and fill in real values
+# config.py is gitignored and will never be committed
+
+# Neon CRM credentials
+NEON_ORG_ID = 'your-org-id'
+NEON_API_KEY = 'your-api-key'
+
+# App users — username: password
+# Add or remove users as needed
+USERS = {
+    'admin':     'change-me',
+    'treasurer': 'change-me',
+}
