@@ -18,6 +18,9 @@ build/
 *.env
 secrets.*
 
+# Claude local settings (may contain API keys)
+.claude/
+
 # Editor
 .vscode/
 .idea/
