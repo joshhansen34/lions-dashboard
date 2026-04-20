@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"http://localhost:8765/v2/accounts?userType=INDIVIDUAL&pagination.pageSize=200&pagination.currentPage=2\" -H \"Authorization: Basic $\\(echo -n 'shakopeelionsclub:1a5efb6f11e8e8e00c4fd5d9de347942')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); p=d.get\\('pagination',{}\\); accounts=d.get\\('accounts',[]\\); print\\('currentPage:', p.get\\('currentPage'\\)\\); print\\('accounts returned:', len\\(accounts\\)\\); print\\('first 3 IDs:', [a['accountId'] for a in accounts[:3]]\\)\")",
+      "Bash(curl -s \"http://localhost:8765/v2/accounts?userType=INDIVIDUAL&pagination.pageSize=200&pagination.currentPage=1\" -H \"Authorization: Basic $\\(echo -n 'shakopeelionsclub:1a5efb6f11e8e8e00c4fd5d9de347942')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); accounts=d.get\\('accounts',[]\\); print\\('page=1 first 3 IDs:', [a['accountId'] for a in accounts[:3]]\\)\")",
+      "Bash(curl -s \"http://localhost:8765/v2/accounts?userType=INDIVIDUAL&currentPage=1&pageSize=200\" -H \"Authorization: Basic $\\(echo -n 'shakopeelionsclub:1a5efb6f11e8e8e00c4fd5d9de347942')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); accounts=d.get\\('accounts',[]\\); p=d.get\\('pagination',{}\\); print\\('alt params page=1 first 3 IDs:', [a['accountId'] for a in accounts[:3]]\\); print\\('totalPages:', p.get\\('totalPages'\\)\\)\")",
+      "Bash(python3 *)"
+    ]
+  }
+}

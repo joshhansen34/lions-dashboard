@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Neon API Debug</title>
+<style>
+  body { background: #0D1B2A; color: #F5F0E8; font-family: monospace; padding: 24px; }
+  pre { background: #162236; padding: 16px; overflow: auto; font-size: 12px; max-height: 80vh; }
+  button { background: #C9A84C; border: none; color: #0D1B2A; padding: 10px 20px; cursor: pointer; font-size: 14px; margin: 8px 4px; }
+  input { background: #162236; border: 1px solid #2a4060; color: white; padding: 8px 12px; width: 300px; font-family: monospace; }
+  label { color: #8A9BB0; font-size: 11px; display: block; margin-bottom: 4px; }
+  .field { margin-bottom: 12px; }
+  h3 { color: #C9A84C; margin-top: 16px; }
+</style>
+</head>
+<body>
+<h2 style="color:#C9A84C;">Neon API Debug Tool</h2>
+<div class="field"><label>ORG ID</label><input id="org" value="shakopeelionsclub"/></div>
+<div class="field"><label>API KEY</label><input id="key" type="password"/></div>
+<br>
+<h3>Memberships</h3>
+<button onclick="test('/v2/memberships?pagination.pageSize=2')">GET /v2/memberships</button>
+<button onclick="test('/v2/memberships?pagination.pageSize=2&membershipStatus=active')">GET with status=active</button>
+<button onclick="test('/v2/accounts/108/memberships')">Account 108 memberships</button>
+<h3>Accounts</h3>
+<button onclick="test('/v2/accounts?userType=INDIVIDUAL&pagination.pageSize=2')">2 Accounts</button>
+<button onclick="test('/v2/accounts/108')">Account 108 detail</button>
+<pre id="out">Results will appear here...</pre>
+<script>
+function auth() { return 'Basic ' + btoa(document.getElementById('org').value + ':' + document.getElementById('key').value); }
+async function test(path) {
+  document.getElementById('out').textContent = 'Loading ' + path + '...';
+  try {
+    const res = await fetch('http://localhost:8765' + path, { headers: { 'Authorization': auth() } });
+    const data = await res.json();
+    document.getElementById('out').textContent = JSON.stringify(data, null, 2);
+  } catch(e) { document.getElementById('out').textContent = 'Error: ' + e.message; }
+}
+</script>
+</body>
+</html>

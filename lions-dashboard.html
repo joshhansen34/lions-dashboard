@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shakopee Lions Club — Member Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #C9A84C; --gold-light: #E8C96A; --gold-dim: #7a6530;
+    --navy: #0D1B2A; --navy-mid: #162236; --navy-light: #1E3050;
+    --navy-border: #2a4060; --white: #F5F0E8; --gray: #8A9BB0;
+    --red: #C0392B; --green: #27AE60; --amber: #E67E22;
+    --mono: 'IBM Plex Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
+    --display: 'Bebas Neue', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--navy); color: var(--white); font-family: var(--sans); min-height: 100vh; }
+
+  header { background: var(--navy-mid); border-bottom: 2px solid var(--gold); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 64px; position: sticky; top: 0; z-index: 100; }
+  .logo { display: flex; align-items: center; gap: 14px; }
+  .logo-icon { width: 36px; height: 36px; background: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .logo-text { font-family: var(--display); font-size: 22px; letter-spacing: 2px; color: var(--gold); }
+  .logo-sub { font-family: var(--mono); font-size: 10px; color: var(--gray); letter-spacing: 1px; margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .sync-btn { background: transparent; border: 1px solid var(--gold-dim); color: var(--gold); font-family: var(--mono); font-size: 11px; letter-spacing: 1px; padding: 7px 16px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
+  .sync-btn:hover { background: var(--gold); color: var(--navy); }
+  .sync-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #setup-screen { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 64px); padding: 40px; }
+  .setup-card { background: var(--navy-mid); border: 1px solid var(--navy-border); border-top: 3px solid var(--gold); padding: 48px; width: 100%; max-width: 480px; }
+  .setup-card h2 { font-family: var(--display); font-size: 28px; letter-spacing: 2px; color: var(--gold); margin-bottom: 8px; }
+  .setup-card p { color: var(--gray); font-size: 13px; line-height: 1.6; margin-bottom: 32px; }
+  .field-group { margin-bottom: 20px; }
+  .field-group label { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gray); margin-bottom: 8px; }
+  .field-group input { width: 100%; background: var(--navy); border: 1px solid var(--navy-border); color: var(--white); font-family: var(--mono); font-size: 13px; padding: 10px 14px; outline: none; transition: border-color 0.2s; }
+  .field-group input:focus { border-color: var(--gold); }
+  .connect-btn { width: 100%; background: var(--gold); border: none; color: var(--navy); font-family: var(--display); font-size: 18px; letter-spacing: 2px; padding: 14px; cursor: pointer; margin-top: 8px; transition: background 0.2s; }
+  .connect-btn:hover { background: var(--gold-light); }
+  .error-msg { color: var(--red); font-family: var(--mono); font-size: 11px; margin-top: 12px; display: none; }
+
+  #dashboard { display: none; padding: 24px 32px; }
+
+  .stats-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--navy-border); border: 1px solid var(--navy-border); margin-bottom: 24px; }
+  .stat { background: var(--navy-mid); padding: 16px 20px; text-align: center; }
+  .stat-num { font-family: var(--display); font-size: 32px; line-height: 1; margin-bottom: 4px; }
+  .stat-label { font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gray); }
+  .stat-num.gold { color: var(--gold); } .stat-num.green { color: var(--green); }
+  .stat-num.red { color: var(--red); } .stat-num.amber { color: var(--amber); } .stat-num.gray { color: var(--gray); }
+
+  .load-progress { background: var(--navy-mid); border: 1px solid var(--navy-border); padding: 24px 32px; margin-bottom: 24px; display: none; }
+  .load-progress-label { font-family: var(--mono); font-size: 11px; color: var(--gray); letter-spacing: 1px; margin-bottom: 10px; }
+  .progress-bar-wrap { background: var(--navy); border: 1px solid var(--navy-border); height: 4px; }
+  .progress-bar { height: 4px; background: var(--gold); width: 0%; transition: width 0.3s; }
+
+  .controls { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+  .search-wrap { flex: 1; min-width: 200px; position: relative; }
+  .search-wrap input { width: 100%; background: var(--navy-mid); border: 1px solid var(--navy-border); color: var(--white); font-family: var(--sans); font-size: 13px; padding: 9px 14px 9px 36px; outline: none; transition: border-color 0.2s; }
+  .search-wrap input:focus { border-color: var(--gold); }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray); font-size: 14px; }
+  .filter-btn { background: var(--navy-mid); border: 1px solid var(--navy-border); color: var(--gray); font-family: var(--mono); font-size: 10px; letter-spacing: 1px; padding: 9px 14px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
+  .filter-btn:hover, .filter-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,0.08); }
+
+  .table-wrap { background: var(--navy-mid); border: 1px solid var(--navy-border); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--navy-light); border-bottom: 1px solid var(--gold-dim); }
+  th { font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); padding: 12px 16px; text-align: left; white-space: nowrap; cursor: pointer; user-select: none; }
+  th:hover { color: var(--gold-light); }
+  tbody tr { border-bottom: 1px solid rgba(42,64,96,0.5); transition: background 0.15s; cursor: pointer; }
+  tbody tr:hover { background: rgba(201,168,76,0.05); }
+  tbody tr:last-child { border-bottom: none; }
+  td { padding: 12px 16px; font-size: 13px; vertical-align: middle; }
+  .member-name { font-weight: 500; color: var(--white); }
+  .member-email { font-family: var(--mono); font-size: 11px; color: var(--gray); margin-top: 2px; }
+
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 2px; white-space: nowrap; }
+  .badge-current { background: rgba(39,174,96,0.15); color: var(--green); border: 1px solid rgba(39,174,96,0.3); }
+  .badge-expired { background: rgba(192,57,43,0.15); color: var(--red); border: 1px solid rgba(192,57,43,0.3); }
+  .badge-hardship { background: rgba(230,126,34,0.15); color: var(--amber); border: 1px solid rgba(230,126,34,0.3); }
+  .badge-cash { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+  .badge-exited { background: rgba(138,155,176,0.15); color: var(--gray); border: 1px solid rgba(138,155,176,0.3); }
+  .flags-cell { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+  .type-pill { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--gray); background: var(--navy-light); padding: 2px 7px; border-radius: 2px; }
+
+  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--navy-border); background: var(--navy-light); }
+  .page-info { font-family: var(--mono); font-size: 10px; color: var(--gray); letter-spacing: 1px; }
+  .page-btns { display: flex; gap: 4px; }
+  .page-btn { background: transparent; border: 1px solid var(--navy-border); color: var(--gray); font-family: var(--mono); font-size: 11px; padding: 5px 10px; cursor: pointer; transition: all 0.2s; }
+  .page-btn:hover:not(:disabled), .page-btn.active { border-color: var(--gold); color: var(--gold); }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(13,27,42,0.85); z-index: 200; align-items: center; justify-content: center; padding: 24px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--navy-mid); border: 1px solid var(--navy-border); border-top: 3px solid var(--gold); width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+  .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--navy-border); display: flex; align-items: flex-start; justify-content: space-between; }
+  .modal-name { font-family: var(--display); font-size: 24px; letter-spacing: 1px; color: var(--gold); }
+  .modal-meta { font-family: var(--mono); font-size: 11px; color: var(--gray); margin-top: 4px; }
+  .modal-close { background: none; border: none; color: var(--gray); font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1; }
+  .modal-close:hover { color: var(--white); }
+  .modal-body { padding: 24px; }
+  .modal-section { margin-bottom: 24px; }
+  .modal-section-title { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-dim); margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid var(--navy-border); }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .info-item label { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--gray); display: block; margin-bottom: 4px; }
+  .info-item .value { font-size: 13px; color: var(--white); }
+  .modal-field-group { margin-bottom: 16px; }
+  .modal-field-group label { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--gray); display: block; margin-bottom: 8px; }
+  .modal-field-group select, .modal-field-group input[type="text"] { width: 100%; background: var(--navy); border: 1px solid var(--navy-border); color: var(--white); font-family: var(--sans); font-size: 13px; padding: 9px 12px; outline: none; transition: border-color 0.2s; }
+  .modal-field-group select:focus, .modal-field-group input:focus { border-color: var(--gold); }
+  .checkbox-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--navy); border: 1px solid var(--navy-border); cursor: pointer; transition: border-color 0.2s; margin-bottom: 8px; }
+  .checkbox-row:hover { border-color: var(--gold-dim); }
+  .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--gold); cursor: pointer; }
+  .checkbox-row span { font-size: 13px; color: var(--white); }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--navy-border); display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
+  .btn-cancel { background: transparent; border: 1px solid var(--navy-border); color: var(--gray); font-family: var(--mono); font-size: 11px; letter-spacing: 1px; padding: 9px 20px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
+  .btn-cancel:hover { border-color: var(--gray); color: var(--white); }
+  .btn-save { background: var(--gold); border: none; color: var(--navy); font-family: var(--display); font-size: 16px; letter-spacing: 1px; padding: 9px 28px; cursor: pointer; transition: background 0.2s; }
+  .btn-save:hover { background: var(--gold-light); }
+  .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+  .neon-link { color: var(--gold); font-family: var(--mono); font-size: 10px; text-decoration: none; letter-spacing: 1px; opacity: 0.7; transition: opacity 0.2s; margin-right: auto; }
+  .neon-link:hover { opacity: 1; }
+  .modal-loading { text-align: center; padding: 40px; color: var(--gray); font-family: var(--mono); font-size: 11px; }
+  .modal-spinner { width: 24px; height: 24px; border: 2px solid var(--navy-border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  .loading { text-align: center; padding: 60px; color: var(--gray); font-family: var(--mono); font-size: 12px; letter-spacing: 2px; }
+  .spinner { width: 32px; height: 32px; border: 2px solid var(--navy-border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { text-align: center; padding: 48px; color: var(--gray); font-family: var(--mono); font-size: 12px; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--navy-light); border: 1px solid var(--gold); color: var(--white); font-family: var(--mono); font-size: 12px; padding: 12px 20px; z-index: 300; transform: translateY(80px); opacity: 0; transition: all 0.3s; letter-spacing: 1px; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { border-color: var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🦁</div>
+    <div>
+      <div class="logo-text">Shakopee Lions</div>
+      <div class="logo-sub">Member Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="last-sync" style="font-family:var(--mono);font-size:10px;color:var(--gray);letter-spacing:1px;"></span>
+    <button class="sync-btn" id="sync-btn" onclick="loadMembers(true)">↻ Refresh</button>
+  </div>
+</header>
+
+<div id="setup-screen">
+  <div class="setup-card">
+    <h2>Connect to Neon CRM</h2>
+    <p>Enter your Neon One organization ID and API key to get started. Credentials are stored locally in your browser only.</p>
+    <div class="field-group">
+      <label>Organization ID</label>
+      <input type="text" id="org-id-input" placeholder="e.g. shakopeelionsclub" />
+    </div>
+    <div class="field-group">
+      <label>API Key</label>
+      <input type="password" id="api-key-input" placeholder="Your Neon API key" />
+    </div>
+    <button class="connect-btn" onclick="connect()">Connect</button>
+    <div class="error-msg" id="connect-error"></div>
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-num gold" id="stat-total">—</div><div class="stat-label">Total Members</div></div>
+    <div class="stat"><div class="stat-num green" id="stat-current">—</div><div class="stat-label">Dues Current</div></div>
+    <div class="stat"><div class="stat-num red" id="stat-expired">—</div><div class="stat-label">Dues Expired</div></div>
+    <div class="stat"><div class="stat-num amber" id="stat-hardship">—</div><div class="stat-label">Hardship Waiver</div></div>
+    <div class="stat"><div class="stat-num gray" id="stat-exited">—</div><div class="stat-label">Deceased / Resigned</div></div>
+  </div>
+
+  <div class="load-progress" id="load-progress">
+    <div class="load-progress-label" id="load-progress-label">Loading...</div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+  </div>
+
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="text" id="search-input" placeholder="Search by name or email..." oninput="applyFilters()" />
+    </div>
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('current', this)">Current</button>
+    <button class="filter-btn" onclick="setFilter('expired', this)">Expired</button>
+    <button class="filter-btn" onclick="setFilter('hardship', this)">Hardship</button>
+    <button class="filter-btn" onclick="setFilter('cash', this)">Cash/Check</button>
+    <button class="filter-btn" onclick="setFilter('exited', this)">Exited</button>
+    <button class="filter-btn" style="margin-left:auto;background:var(--blue);color:#fff;border-color:var(--blue);" onclick="exportCSV()">Export CSV</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('name')">Member ↕</th>
+          <th onclick="sortBy('type')">Membership Type ↕</th>
+          <th onclick="sortBy('status')">Dues Status ↕</th>
+          <th onclick="sortBy('expiry')">Expires ↕</th>
+          <th>Flags</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="member-table-body">
+        <tr><td colspan="6"><div class="loading"><div class="spinner"></div>Loading...</div></td></tr>
+      </tbody>
+    </table>
+    <div class="pagination" id="pagination" style="display:none;">
+      <span class="page-info" id="page-info"></span>
+      <div class="page-btns" id="page-btns"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="member-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-name" id="modal-name"></div>
+        <div class="modal-meta" id="modal-meta"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <div class="modal-loading"><div class="modal-spinner"></div>Loading...</div>
+    </div>
+    <div class="modal-footer" id="modal-footer" style="display:none;">
+      <a id="modal-neon-link" href="#" target="_blank" class="neon-link">Open in Neon ↗</a>
+      <button class="btn-cancel" id="print-bill-btn" onclick="printBill(editingMember)" style="display:none;border-color:var(--gold-dim);color:var(--gold);">Print Bill</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="save-btn" onclick="saveMember()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CACHE_KEY = 'lc_members_v2';
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const BATCH = 10;
+
+const DUES_RATES = {
+  'Standard Member': 151,
+  'Member at Large': 55,
+  'Standard Member - No Meals': 55,
+};
+
+const TREASURER = {
+  name: 'Lion Joe Witt',
+  address: '14160 Autumn Trail',
+  city: 'Shakopee, MN 55379',
+};
+
+let ORG_ID = '', API_KEY = '';
+let allMembers = [], filteredMembers = [];
+let currentFilter = 'all', currentSort = { key: 'name', dir: 1 };
+let currentPage = 1;
+const PAGE_SIZE = 50;
+let editingMember = null;
+// Field IDs are stable in Neon — hardcoded here since the customFields endpoint
+// doesn't return the newer fields (138-141)
+let customFieldIds = {
+  hardship:   '138',
+  cash:       '139',
+  exitStatus: '140',
+  exitDate:   '141',
+  joinDate:   '81',
+  partner:    '82',
+  lionsNum:   '84',
+  sponsor:    '86',
+};
+
+window.onload = () => {
+  const org = localStorage.getItem('lc_org');
+  const key = localStorage.getItem('lc_key');
+  if (org && key) { ORG_ID = org; API_KEY = key; showDashboard(); loadMembers(); }
+};
+
+function authHeader() { return 'Basic ' + btoa(ORG_ID + ':' + API_KEY); }
+function showDashboard() { document.getElementById('setup-screen').style.display = 'none'; document.getElementById('dashboard').style.display = 'block'; }
+
+async function neonGet(path) {
+  return fetch('/v2' + path, { headers: { 'Authorization': authHeader(), 'Content-Type': 'application/json' } });
+}
+async function neonPatch(path, body) {
+  return fetch('/v2' + path, { method: 'PATCH', headers: { 'Authorization': authHeader(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+}
+
+async function connect() {
+  const org = document.getElementById('org-id-input').value.trim();
+  const key = document.getElementById('api-key-input').value.trim();
+  const errEl = document.getElementById('connect-error');
+  errEl.style.display = 'none';
+  if (!org || !key) { errEl.textContent = 'Both fields are required.'; errEl.style.display = 'block'; return; }
+  ORG_ID = org; API_KEY = key;
+  try {
+    const res = await neonGet('/accounts?userType=INDIVIDUAL&pageSize=1');
+    if (!res.ok) throw new Error();
+    localStorage.setItem('lc_org', org); localStorage.setItem('lc_key', key);
+    showDashboard(); loadMembers();
+  } catch(e) {
+    errEl.textContent = 'Could not connect. Check your org ID and API key.';
+    errEl.style.display = 'block'; ORG_ID = ''; API_KEY = '';
+  }
+}
+
+function setProgress(label, pct) {
+  const el = document.getElementById('load-progress');
+  el.style.display = 'block';
+  document.getElementById('load-progress-label').textContent = label;
+  document.getElementById('progress-bar').style.width = pct + '%';
+  if (pct >= 100) setTimeout(() => { el.style.display = 'none'; }, 800);
+}
+
+// Extract field IDs by matching field names — works on both the customFields endpoint
+// and accountCustomFields arrays from individual account responses
+function extractFieldIds(fields) {
+  for (const f of (fields || [])) {
+    if (!f.name || !f.id) continue;
+    const n = f.name.toLowerCase().replace(/[^a-z]/g, '');
+    const id = String(f.id);
+    if (!customFieldIds.hardship && n.includes('hardship')) { customFieldIds.hardship = id; continue; }
+    if (!customFieldIds.cash && (n.includes('cash') || n.includes('check'))) { customFieldIds.cash = id; continue; }
+    if (!customFieldIds.exitStatus && (n.includes('exitstatus') || (n.includes('exit') && n.includes('status')))) { customFieldIds.exitStatus = id; continue; }
+    if (!customFieldIds.exitDate && (n.includes('exitdate') || (n.includes('exit') && n.includes('date')))) { customFieldIds.exitDate = id; continue; }
+    if (!customFieldIds.joinDate && (n.includes('joindate') || n.includes('join'))) { customFieldIds.joinDate = id; continue; }
+    if (!customFieldIds.sponsor && n.includes('sponsor')) { customFieldIds.sponsor = id; continue; }
+    if (!customFieldIds.partner && (n.includes('partner') || n.includes('spouse'))) { customFieldIds.partner = id; continue; }
+    if (!customFieldIds.lionsNum && (n.includes('lionsint') || n.includes('lionsnumber') || n.includes('lionsnum'))) { customFieldIds.lionsNum = id; }
+  }
+}
+
+// Returns {cycles, rate, total} for an expired member, or null if not expired.
+// cycles is an array of {start, end, type:'overdue'|'current'}
+// Arrears rule: one cycle per 6-month block elapsed since expiry, plus one current cycle to reinstate.
+function calcArrears(member) {
+  if (!member.membershipExpiry || member.exitStatus) return null;
+  const expiry = new Date(member.membershipExpiry);
+  const now = new Date();
+  if (expiry >= now) return null;
+  const rate = DUES_RATES[member.membershipType] || 0;
+  const cycles = [];
+  let cycleStart = new Date(expiry);
+  while (true) {
+    const cycleEnd = new Date(cycleStart);
+    cycleEnd.setMonth(cycleEnd.getMonth() + 6);
+    if (cycleEnd > now) break;
+    cycles.push({ start: new Date(cycleStart), end: cycleEnd, type: 'overdue' });
+    cycleStart = cycleEnd;
+  }
+  // Add one current-period cycle to reinstate
+  const currentEnd = new Date(cycleStart);
+  currentEnd.setMonth(currentEnd.getMonth() + 6);
+  cycles.push({ start: new Date(cycleStart), end: currentEnd, type: 'current' });
+  return { cycles, rate, total: cycles.length * rate };
+}
+
+function applyCustomFieldValues(member, fields) {
+  for (const cf of (fields || [])) {
+    const id = String(cf.id);
+    const val = cf.value || (Array.isArray(cf.optionValues) && cf.optionValues[0]?.name) || '';
+    if (id === customFieldIds.hardship) member.hardship = val === 'Yes';
+    else if (id === customFieldIds.cash) member.cash = val === 'Yes';
+    else if (id === customFieldIds.exitStatus) member.exitStatus = val;
+    else if (id === customFieldIds.exitDate) member.exitDate = val;
+    else if (id === customFieldIds.joinDate) member.joinDate = val;
+    else if (id === customFieldIds.sponsor) member.sponsor = val;
+    else if (id === customFieldIds.partner) member.partner = val;
+    else if (id === customFieldIds.lionsNum) member.lionsNumber = val;
+  }
+}
+
+function saveCache(members, fieldIds) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ members, fieldIds, ts: Date.now() }));
+  } catch(e) { console.warn('Cache save failed:', e); }
+}
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (Date.now() - data.ts > CACHE_TTL) return null;
+    return data;
+  } catch { return null; }
+}
+
+async function loadMembers(manual = false) {
+  document.getElementById('sync-btn').disabled = true;
+  document.getElementById('member-table-body').innerHTML = '<tr><td colspan="6"><div class="loading"><div class="spinner"></div>Loading...</div></td></tr>';
+  document.getElementById('pagination').style.display = 'none';
+
+  // Serve from cache unless manually refreshing
+  if (!manual) {
+    const cached = loadCache();
+    if (cached) {
+      allMembers = cached.members;
+      customFieldIds = cached.fieldIds || {};
+      document.getElementById('last-sync').textContent = 'Cached ' + new Date(cached.ts).toLocaleTimeString();
+      updateStats();
+      applyFilters();
+      document.getElementById('sync-btn').disabled = false;
+      return;
+    }
+  }
+
+  try {
+    // Step 1: Get all individual account IDs from the list endpoint
+    setProgress('Scanning accounts...', 5);
+    let page = 0, totalPages = 1;
+    const allIds = [];
+    do {
+      const res = await neonGet(`/accounts?userType=INDIVIDUAL&pageSize=200&currentPage=${page}`);
+      if (!res.ok) throw new Error('Failed to fetch account list');
+      const data = await res.json();
+      totalPages = data.pagination?.totalPages || 1;
+      for (const a of (data.accounts || [])) allIds.push(String(a.accountId));
+      setProgress(`Scanning accounts... (${allIds.length} found)`, 5 + Math.round((page / totalPages) * 15));
+      page++;
+    } while (page < totalPages);
+
+    // Step 2: Try customFields endpoint
+    for (const url of ['/customFields?category=Account', '/customFields']) {
+      try {
+        const cfRes = await neonGet(url);
+        if (cfRes.ok) { extractFieldIds(await cfRes.json()); break; }
+      } catch(e) { /* non-fatal */ }
+    }
+
+    // Step 3: Batch-fetch every individual account to get full details + custom fields.
+    // We keep ALL accounts here — no membership filter. The ~500 non-members (donors,
+    // event attendees) will have no membershipStatus and can be cleaned up via Exit Status.
+    setProgress('Loading accounts...', 20);
+    const rawMembers = [];
+    const seen = {};
+
+    for (let i = 0; i < allIds.length; i += BATCH) {
+      const batch = allIds.slice(i, i + BATCH);
+      const results = await Promise.all(
+        batch.map(id => neonGet(`/accounts/${id}`).then(r => r.ok ? r.json() : null).catch(() => null))
+      );
+      await new Promise(r => setTimeout(r, 150));
+
+      for (const data of results) {
+        if (!data) continue;
+        const acct = data.individualAccount || data;
+        const cf = acct.accountCustomFields || [];
+        extractFieldIds(cf);
+
+        const contact = acct.primaryContact || {};
+        const firstName = (contact.firstName || acct.firstName || '').trim();
+        const lastName  = (contact.lastName  || acct.lastName  || '').trim();
+        const email     = (contact.email1    || acct.email     || '').toLowerCase().trim();
+
+        // Skip completely blank accounts (no name, no email)
+        if (!firstName && !lastName && !email) continue;
+
+        const memStatus = (acct.accountCurrentMembershipStatus || '').toLowerCase();
+        const isActive  = memStatus === 'active';
+        const key = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${email}`;
+
+        const addresses = contact.addresses || [];
+        const addr  = addresses.find(a => a.isPrimary) || addresses[0] || {};
+        const phones = contact.phones || [];
+        const phone = phones.find(p => p.isPrimary) || phones[0] || {};
+
+        const member = {
+          id: String(acct.accountId),
+          firstName, lastName, email,
+          membershipStatus: isActive ? 'current' : (memStatus === 'lapsed' ? 'expired' : ''),
+          membershipType: '', membershipExpiry: '',
+          hardship: false, cash: false,
+          exitStatus: '', exitDate: '',
+          joinDate: '', sponsor: '', partner: '', lionsNumber: '',
+          addressLine1: addr.addressLine1 || '',
+          addressLine2: addr.addressLine2 || '',
+          city: addr.city || '',
+          state: addr.stateProvince || '',
+          zip: addr.zipCode || '',
+          phone: phone.phoneNumber || '',
+          loaded: false,
+          _isActive: isActive,
+          _cf: cf
+        };
+
+        const existing = seen[key];
+        if (existing === undefined) {
+          seen[key] = rawMembers.length;
+          rawMembers.push(member);
+        } else if (isActive && !rawMembers[existing]._isActive) {
+          rawMembers[existing] = member;
+        }
+      }
+
+      const pct = 20 + Math.round(((i + BATCH) / allIds.length) * 50);
+      setProgress(`Loading accounts... (${rawMembers.length} found, ${Math.min(i + BATCH, allIds.length)}/${allIds.length} scanned)`, pct);
+    }
+
+    // Step 4: Apply custom field values now that all field IDs are accumulated
+    for (const m of rawMembers) {
+      applyCustomFieldValues(m, m._cf);
+      delete m._cf;
+      delete m._isActive;
+    }
+
+    // Step 5: Fetch memberships for ALL accounts — this is the authoritative filter.
+    setProgress(`Checking memberships... (0/${rawMembers.length})`, 70);
+    const confirmedMembers = [];
+    let memFails = 0;
+
+    for (let i = 0; i < rawMembers.length; i += BATCH) {
+      const batch = rawMembers.slice(i, i + BATCH);
+      const results = await Promise.all(
+        batch.map(m => neonGet(`/accounts/${m.id}/memberships`)
+          .then(r => r.ok ? r.json() : (memFails++, null))
+          .catch(() => (memFails++, null)))
+      );
+      await new Promise(r => setTimeout(r, 150));
+
+      for (let j = 0; j < batch.length; j++) {
+        const data = results[j];
+        if (!data) continue;
+        const mems = data.memberships || [];
+        if (mems.length === 0) continue;
+        const active = mems.find(m => m.isActive && m.primaryActiveMembership);
+        const latest = [...mems].sort((a, b) => new Date(b.termEndDate || 0) - new Date(a.termEndDate || 0))[0];
+        const target = active || latest;
+        if (target) {
+          batch[j].membershipType   = target.membershipLevel?.name || '';
+          batch[j].membershipExpiry = target.termEndDate || '';
+          // Trust Neon's isActive flag — don't override with date math
+          batch[j].membershipStatus = active ? 'current' : 'expired';
+        }
+        batch[j].loaded = true;
+        confirmedMembers.push(batch[j]);
+      }
+      const pct = 70 + Math.round(((i + BATCH) / rawMembers.length) * 25);
+      setProgress(`Checking memberships... (${confirmedMembers.length} members, ${Math.min(i + BATCH, rawMembers.length)}/${rawMembers.length} checked)`, pct);
+    }
+
+    allMembers = confirmedMembers.sort((a, b) => (a.lastName + a.firstName).localeCompare(b.lastName + b.firstName));
+
+    saveCache(allMembers, customFieldIds);
+    setProgress('Done!', 100);
+    document.getElementById('last-sync').textContent = 'Synced ' + new Date().toLocaleTimeString();
+    updateStats();
+    applyFilters();
+    const foundFields = Object.keys(customFieldIds).join(', ') || 'none';
+    showToast(`${allMembers.length} members · scanned: ${allIds.length} IDs / ${rawMembers.length} accounts · mem fails: ${memFails} · fields: ${foundFields}`, false, 10000);
+
+  } catch(e) {
+    console.error(e);
+    showToast('Error: ' + e.message, true);
+    document.getElementById('load-progress').style.display = 'none';
+    document.getElementById('member-table-body').innerHTML = '<tr><td colspan="6"><div class="empty-state">Failed to load. Check connection and refresh.</div></td></tr>';
+  }
+  document.getElementById('sync-btn').disabled = false;
+}
+
+// Fallback: re-fetch a single member's account details if needed
+async function fetchMemberDetail(member) {
+  const acctRes = await neonGet(`/accounts/${member.id}`);
+  if (acctRes.ok) {
+    const data = await acctRes.json();
+    const acct = data.individualAccount || data;
+    const cf = acct.accountCustomFields || [];
+    extractFieldIds(cf);
+    applyCustomFieldValues(member, cf);
+    const contact = acct.primaryContact || {};
+    const addresses = contact.addresses || [];
+    const addr = addresses.find(a => a.isPrimary) || addresses[0] || {};
+    const phones = contact.phones || [];
+    const phone = phones.find(p => p.isPrimary) || phones[0] || {};
+    member.addressLine1 = addr.addressLine1 || member.addressLine1;
+    member.addressLine2 = addr.addressLine2 || member.addressLine2;
+    member.city  = addr.city || member.city;
+    member.state = addr.stateProvince || member.state;
+    member.zip   = addr.zipCode || member.zip;
+    member.phone = phone.phoneNumber || member.phone;
+  }
+  member.loaded = true;
+}
+
+function updateStats() {
+  const active = allMembers.filter(m => !m.exitStatus);
+  document.getElementById('stat-total').textContent = active.length;
+  document.getElementById('stat-current').textContent = active.filter(m => m.membershipStatus === 'current').length;
+  document.getElementById('stat-expired').textContent = active.filter(m => m.membershipStatus === 'expired').length;
+  document.getElementById('stat-hardship').textContent = active.filter(m => m.hardship).length;
+  document.getElementById('stat-exited').textContent = allMembers.filter(m => m.exitStatus).length;
+}
+
+function setFilter(f, btn) {
+  currentFilter = f; currentPage = 1;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); applyFilters();
+}
+
+function applyFilters() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  filteredMembers = allMembers.filter(m => {
+    const name = (m.firstName + ' ' + m.lastName).toLowerCase();
+    if (q && !name.includes(q) && !m.email.toLowerCase().includes(q)) return false;
+    if (currentFilter === 'all') return true;
+    if (currentFilter === 'current') return m.membershipStatus === 'current' && !m.exitStatus;
+    if (currentFilter === 'expired') return m.membershipStatus === 'expired' && !m.exitStatus;
+    if (currentFilter === 'hardship') return m.hardship;
+    if (currentFilter === 'cash') return m.cash;
+    if (currentFilter === 'exited') return !!m.exitStatus;
+    return true;
+  });
+  sortMembers(); renderTable();
+}
+
+function exportCSV() {
+  const rows = filteredMembers.filter(m => !m.exitStatus);
+  if (!rows.length) { showToast('Nothing to export'); return; }
+  const headers = ['Last Name','First Name','Email','Phone','Address','City','State','Zip',
+    'Membership Type','Status','Expiry','Hardship Waiver','Pays Cash/Check',
+    'Cycles Overdue','Amount Owed','Join Date','Lions Number','Sponsor','Partner'];
+  const esc = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const csvRows = [headers.map(esc).join(',')];
+  for (const m of rows) {
+    const arrears = calcArrears(m);
+    const overdue = arrears ? arrears.cycles.filter(c => c.type === 'overdue').length : '';
+    const owed = arrears && arrears.total > 0 ? arrears.total : '';
+    csvRows.push([
+      m.lastName, m.firstName, m.email, m.phone || '',
+      m.address || '', m.city || '', m.state || '', m.zip || '',
+      m.membershipType || '', m.membershipStatus || '', m.membershipExpiry || '',
+      m.hardship ? 'Yes' : '', m.cash ? 'Yes' : '',
+      overdue, owed,
+      m.joinDate || '', m.lionsNum || '', m.sponsor || '', m.partner || ''
+    ].map(esc).join(','));
+  }
+  const blob = new Blob([csvRows.join('\r\n')], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const label = currentFilter === 'all' ? 'all' : currentFilter;
+  a.href = url; a.download = `lions-members-${label}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function sortBy(key) {
+  if (currentSort.key === key) currentSort.dir *= -1;
+  else { currentSort.key = key; currentSort.dir = 1; }
+  currentPage = 1; sortMembers(); renderTable();
+}
+
+function sortMembers() {
+  filteredMembers.sort((a, b) => {
+    let av, bv;
+    if (currentSort.key === 'name')   { av = a.lastName + a.firstName; bv = b.lastName + b.firstName; }
+    else if (currentSort.key === 'type')   { av = a.membershipType; bv = b.membershipType; }
+    else if (currentSort.key === 'status') { av = a.membershipStatus || ''; bv = b.membershipStatus || ''; }
+    else if (currentSort.key === 'expiry') { av = a.membershipExpiry || ''; bv = b.membershipExpiry || ''; }
+    else { av = ''; bv = ''; }
+    return av < bv ? -currentSort.dir : av > bv ? currentSort.dir : 0;
+  });
+}
+
+function renderTable() {
+  const tbody = document.getElementById('member-table-body');
+  const total = filteredMembers.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = filteredMembers.slice(start, start + PAGE_SIZE);
+
+  if (total === 0) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No members found</div></td></tr>';
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+
+  tbody.innerHTML = page.map(m => {
+    const name = [m.firstName, m.lastName].filter(Boolean).join(' ') || '(No name)';
+    let statusBadge;
+    if (m.exitStatus) statusBadge = `<span class="badge badge-exited">⊘ ${m.exitStatus}</span>`;
+    else if (m.membershipStatus === 'current') statusBadge = `<span class="badge badge-current">● Current</span>`;
+    else if (m.membershipStatus === 'expired') statusBadge = `<span class="badge badge-expired">● Expired</span>`;
+    else statusBadge = `<span style="color:var(--gray);font-family:var(--mono);font-size:11px;">—</span>`;
+
+    const flags = [];
+    if (m.hardship) flags.push(`<span class="badge badge-hardship">Hardship</span>`);
+    if (m.cash) flags.push(`<span class="badge badge-cash">Cash/Check</span>`);
+
+    let expiryCell;
+    if (m.membershipStatus === 'expired' && !m.exitStatus && m.membershipExpiry) {
+      const arrears = calcArrears(m);
+      const dateStr = formatDate(m.membershipExpiry);
+      if (arrears && arrears.rate > 0) {
+        const overdue = arrears.cycles.filter(c => c.type === 'overdue').length;
+        const label = overdue === 0 ? '1 cycle to reinstate' : `${overdue} cycle${overdue !== 1 ? 's' : ''} overdue · $${arrears.total} owed`;
+        expiryCell = `<div style="font-family:var(--mono);font-size:11px;color:var(--gray);">${dateStr}</div><div style="font-family:var(--mono);font-size:10px;color:var(--amber);margin-top:2px;">${label}</div>`;
+      } else {
+        expiryCell = `<span style="font-family:var(--mono);font-size:11px;color:var(--gray);">${dateStr}</span>`;
+      }
+    } else {
+      expiryCell = `<span style="font-family:var(--mono);font-size:11px;color:var(--gray);">${m.membershipExpiry ? formatDate(m.membershipExpiry) : '—'}</span>`;
+    }
+
+    return `<tr onclick="openModal('${m.id}')">
+      <td><div class="member-name">${name}</div><div class="member-email">${m.email||'—'}</div></td>
+      <td>${m.membershipType ? `<span class="type-pill">${m.membershipType}</span>` : '<span style="color:var(--navy-border);">—</span>'}</td>
+      <td>${statusBadge}</td>
+      <td>${expiryCell}</td>
+      <td><div class="flags-cell">${flags.join('') || '<span style="color:var(--navy-border);font-size:11px;">—</span>'}</div></td>
+      <td style="text-align:right;padding-right:16px;"><span style="color:var(--gold-dim);font-size:16px;">›</span></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('pagination').style.display = 'flex';
+  document.getElementById('page-info').textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, total)} of ${total}`;
+  document.getElementById('page-btns').innerHTML = `
+    <button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>
+    ${Array.from({ length: Math.min(totalPages, 7) }, (_, i) => `<button class="page-btn ${i + 1 === currentPage ? 'active' : ''}" onclick="goPage(${i + 1})">${i + 1}</button>`).join('')}
+    <button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>›</button>`;
+}
+
+function goPage(p) {
+  const tp = Math.ceil(filteredMembers.length / PAGE_SIZE);
+  if (p < 1 || p > tp) return;
+  currentPage = p; renderTable(); window.scrollTo(0, 0);
+}
+
+async function openModal(id) {
+  const m = allMembers.find(x => x.id === id);
+  if (!m) return;
+  editingMember = m;
+  document.getElementById('modal-name').textContent = [m.firstName, m.lastName].filter(Boolean).join(' ');
+  document.getElementById('modal-meta').textContent = m.email || 'No email on file';
+  document.getElementById('modal-neon-link').href = `https://app.neoncrm.com/np/admin/account/account.do?accountId=${m.id}`;
+  document.getElementById('member-modal').classList.add('open');
+
+  if (!m.loaded) {
+    document.getElementById('modal-footer').style.display = 'none';
+    document.getElementById('modal-body').innerHTML = '<div class="modal-loading"><div class="modal-spinner"></div>Loading details...</div>';
+    try { await fetchMemberDetail(m); } catch(e) { console.error(e); }
+  }
+
+  renderModalBody(m);
+  document.getElementById('modal-footer').style.display = 'flex';
+  document.getElementById('print-bill-btn').style.display = m.cash ? 'inline-block' : 'none';
+  updateStats(); renderTable();
+}
+
+function renderModalBody(m) {
+  const statusBadge = m.exitStatus
+    ? `<span class="badge badge-exited">Exited — ${m.exitStatus}</span>`
+    : m.membershipStatus === 'current' ? `<span class="badge badge-current">Current</span>`
+    : `<span class="badge badge-expired">Expired</span>`;
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-section">
+      <div class="modal-section-title">Account Info</div>
+      <div class="info-grid">
+        <div class="info-item"><label>Account ID</label><div class="value" style="font-family:var(--mono);font-size:12px;">${m.id}</div></div>
+        <div class="info-item"><label>Lions Int'l #</label><div class="value">${m.lionsNumber || '—'}</div></div>
+        <div class="info-item"><label>Join Date</label><div class="value">${m.joinDate || '—'}</div></div>
+        <div class="info-item"><label>Sponsor</label><div class="value">${m.sponsor || '—'}</div></div>
+        <div class="info-item"><label>Partner/Spouse</label><div class="value">${m.partner || '—'}</div></div>
+        <div class="info-item"><label>Email</label><div class="value" style="font-size:12px;">${m.email || '—'}</div></div>
+        <div class="info-item"><label>Phone</label><div class="value" style="font-family:var(--mono);font-size:12px;">${m.phone || '—'}</div></div>
+        <div class="info-item" style="grid-column:1/-1"><label>Address</label><div class="value" style="font-size:12px;">${[m.addressLine1, m.addressLine2, [m.city, m.state].filter(Boolean).join(', '), m.zip].filter(Boolean).join('<br>') || '—'}</div></div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Membership & Dues</div>
+      <div class="info-grid">
+        <div class="info-item"><label>Membership Type</label><div class="value">${m.membershipType || '—'}</div></div>
+        <div class="info-item"><label>Dues Status</label><div class="value">${statusBadge}</div></div>
+        <div class="info-item"><label>Term Expires</label><div class="value" style="font-family:var(--mono);font-size:12px;">${m.membershipExpiry ? formatDate(m.membershipExpiry) : '—'}</div></div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Custom Flags</div>
+      <label class="checkbox-row"><input type="checkbox" id="modal-hardship" ${m.hardship ? 'checked' : ''}/><span>Hardship Waiver — dues not required</span></label>
+      <label class="checkbox-row"><input type="checkbox" id="modal-cash" ${m.cash ? 'checked' : ''}/><span>Pays by Cash/Check — treasurer handles payment</span></label>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Exit Information</div>
+      <div class="modal-field-group">
+        <label>Exit Status</label>
+        <select id="modal-exit-status">
+          <option value="" ${!m.exitStatus ? 'selected' : ''}>— Still with club —</option>
+          <option value="Deceased" ${m.exitStatus === 'Deceased' ? 'selected' : ''}>Deceased</option>
+          <option value="Resigned" ${m.exitStatus === 'Resigned' ? 'selected' : ''}>Resigned</option>
+        </select>
+      </div>
+      <div class="modal-field-group">
+        <label>Exit Date</label>
+        <input type="text" id="modal-exit-date" value="${m.exitDate || ''}" placeholder="MM/DD/YYYY"/>
+      </div>
+    </div>`;
+}
+
+function printBill(m) {
+  if (!m) return;
+  const name = [m.firstName, m.lastName].filter(Boolean).join(' ');
+  const addrLines = [
+    m.addressLine1, m.addressLine2,
+    [m.city, m.state].filter(Boolean).join(', ') + (m.zip ? ' ' + m.zip : '')
+  ].filter(Boolean);
+  const type = m.membershipType || 'Standard Member';
+  const arrears = calcArrears(m);
+  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  let cycleRows = '';
+  let totalDue = 0;
+  if (arrears && arrears.rate > 0) {
+    for (const c of arrears.cycles) {
+      const start = c.start.toLocaleDateString('en-US', { month: 'short', d: 'numeric', year: 'numeric' });
+      const end   = c.end.toLocaleDateString('en-US',   { month: 'short', d: 'numeric', year: 'numeric' });
+      const tag   = c.type === 'overdue' ? '<span style="color:#C0392B;font-size:11px;">PAST DUE</span>' : '<span style="color:#E67E22;font-size:11px;">CURRENT</span>';
+      cycleRows += `<tr><td>${start} – ${end}</td><td>${type}</td><td>${tag}</td><td style="text-align:right;">$${arrears.rate}</td></tr>`;
+      totalDue += arrears.rate;
+    }
+  } else {
+    // Hardship or unknown rate — still show a bill with blank amount
+    const expiry = m.membershipExpiry ? formatDate(m.membershipExpiry) : '—';
+    cycleRows = `<tr><td colspan="3">Dues (expired ${expiry})</td><td style="text-align:right;">$___</td></tr>`;
+  }
+
+  const win = window.open('', '_blank', 'width=720,height=980');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Dues Notice — ${name}</title>
+  <style>
+    body { font-family: Georgia, serif; color: #222; margin: 0; padding: 60px; font-size: 14px; line-height: 1.7; }
+    .header { border-bottom: 3px solid #C9A84C; padding-bottom: 20px; margin-bottom: 32px; display:flex; justify-content:space-between; align-items:flex-start; }
+    .club-name { font-size: 22px; font-weight: bold; letter-spacing: 1px; color: #0D1B2A; }
+    .club-sub { font-size: 12px; color: #666; margin-top: 3px; }
+    .bill-date { font-size: 13px; color: #666; text-align:right; }
+    .to-block { margin-bottom: 28px; }
+    .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #999; margin-bottom: 6px; }
+    .member-name { font-size: 17px; font-weight: bold; margin-bottom: 2px; }
+    .body-text { margin: 24px 0; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin: 4px 0; }
+    thead th { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; text-align: left; padding: 6px 10px; border-bottom: 1px solid #ddd; }
+    tbody td { padding: 9px 10px; border-bottom: 1px solid #eee; font-size: 13px; vertical-align: middle; }
+    .total-row td { font-weight: bold; font-size: 15px; border-top: 2px solid #C9A84C; border-bottom: none; padding-top: 12px; }
+    .dues-box { border: 1px solid #C9A84C; padding: 0; margin: 24px 0; background: #fffdf7; }
+    .dues-box-header { background: #C9A84C; color: #fff; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; padding: 8px 16px; font-family: sans-serif; }
+    .dues-box table { margin: 0; }
+    .dues-box tbody td { padding: 10px 16px; }
+    .dues-box .total-row td { padding: 12px 16px; }
+    .remit { background: #f5f5f5; border: 1px solid #ddd; padding: 18px 22px; margin-top: 28px; }
+    .footer { margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 14px; }
+    @media print { body { padding: 40px; } }
+  </style></head><body>
+  <div class="header">
+    <div>
+      <div class="club-name">Shakopee Lions Club</div>
+      <div class="club-sub">Shakopee, Minnesota &nbsp;·&nbsp; Lions International</div>
+    </div>
+    <div class="bill-date"><strong>Dues Notice</strong><br>${today}</div>
+  </div>
+
+  <div class="to-block">
+    <div class="section-label">Bill To</div>
+    <div class="member-name">${name}</div>
+    ${addrLines.map(l => `<div>${l}</div>`).join('')}
+    ${m.phone ? `<div style="color:#666;margin-top:3px;font-size:13px;">${m.phone}</div>` : ''}
+  </div>
+
+  <div class="body-text">
+    <p>Dear ${m.firstName || name},</p>
+    <p>Our records show that your Shakopee Lions Club membership dues are past due. Please review the balance below and remit payment at your earliest convenience to remain in good standing with the club.</p>
+  </div>
+
+  <div class="dues-box">
+    <div class="dues-box-header">Dues Summary</div>
+    <table>
+      <thead><tr><th>Period</th><th>Type</th><th>Status</th><th style="text-align:right;">Amount</th></tr></thead>
+      <tbody>
+        ${cycleRows}
+        ${totalDue > 0 ? `<tr class="total-row"><td colspan="3">Total Due</td><td style="text-align:right;">$${totalDue}</td></tr>` : ''}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="remit">
+    <div class="section-label">Please Make Check Payable To</div>
+    <div style="font-size:15px;font-weight:bold;margin-bottom:8px;">Shakopee Lions Club</div>
+    <div class="section-label" style="margin-top:12px;">Mail To</div>
+    <div>${TREASURER.name}</div>
+    <div>${TREASURER.address}</div>
+    <div>${TREASURER.city}</div>
+  </div>
+
+  <div style="margin-top:28px;border:1px solid #0D1B2A;padding:18px 22px;background:#f0f4f8;">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#0D1B2A;font-family:sans-serif;font-weight:bold;margin-bottom:10px;">Skip the Check — Pay Online in 2 Minutes</div>
+    <p style="margin:0 0 10px;font-size:13px;">Did you know you can renew your membership and set up auto-renew online? No checks, no stamps, no waiting.</p>
+    <ol style="margin:0 0 10px;padding-left:20px;font-size:13px;line-height:1.9;">
+      <li>Go to <strong>www.shakopeelions.com</strong></li>
+      <li>Select <strong>Members</strong> from the top menu</li>
+      <li>Select <strong>Existing Members</strong></li>
+      <li>Log in (or create a login) to access your personal portal</li>
+      <li>Renew your membership and turn on <strong>auto-renew</strong> so this never happens again</li>
+    </ol>
+    <p style="margin:0;font-size:12px;color:#666;">Your portal also lets you update your contact info, reset your password, and access member resources.</p>
+  </div>
+
+  <div class="footer">
+    Questions? Contact ${TREASURER.name} or any club officer. Thank you for your continued service to the Shakopee community. We Serve!
+  </div>
+  </body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 400);
+}
+
+function closeModal() { document.getElementById('member-modal').classList.remove('open'); editingMember = null; }
+document.getElementById('member-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+async function saveMember() {
+  if (!editingMember) return;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const hardship  = document.getElementById('modal-hardship').checked;
+  const cash      = document.getElementById('modal-cash').checked;
+  const exitStatus = document.getElementById('modal-exit-status').value;
+  const exitDate  = document.getElementById('modal-exit-date').value;
+
+  const accountCustomFields = [];
+  if (customFieldIds.hardship)   accountCustomFields.push({ id: customFieldIds.hardship,   optionValues: hardship ? ['Yes'] : [] });
+  if (customFieldIds.cash)       accountCustomFields.push({ id: customFieldIds.cash,        optionValues: cash ? ['Yes'] : [] });
+  if (customFieldIds.exitStatus) accountCustomFields.push({ id: customFieldIds.exitStatus,  value: exitStatus });
+  if (customFieldIds.exitDate)   accountCustomFields.push({ id: customFieldIds.exitDate,    value: exitDate });
+
+  try {
+    const res = await neonPatch(`/accounts/${editingMember.id}`, { accountCustomFields });
+    if (!res.ok) throw new Error(await res.text());
+    editingMember.hardship    = hardship;
+    editingMember.cash        = cash;
+    editingMember.exitStatus  = exitStatus;
+    editingMember.exitDate    = exitDate;
+    // Update cache with new values
+    saveCache(allMembers, customFieldIds);
+    updateStats(); renderTable(); closeModal();
+    showToast('Member updated successfully');
+  } catch(e) { console.error(e); showToast('Error: ' + e.message, true); }
+  btn.disabled = false; btn.textContent = 'Save Changes';
+}
+
+function formatDate(str) {
+  if (!str) return '—';
+  try { return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+  catch { return str; }
+}
+
+function showToast(msg, isError = false, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), duration);
+}
+</script>
+</body>
+</html>
