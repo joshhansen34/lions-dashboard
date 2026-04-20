@@ -34,9 +34,12 @@ _users_env = os.environ.get("APP_USERS", "")
 if _users_env:
     USERS = {}
     for pair in _users_env.split(","):
+        pair = pair.strip()
         if ":" in pair:
             u, p = pair.split(":", 1)
-            USERS[u.strip()] = p.strip()
+            u = u.strip().lstrip("=")
+            if u:
+                USERS[u] = p.strip()
 
 if not NEON_ORG_ID or not NEON_API_KEY:
     print("\n  ERROR: NEON_ORG_ID and NEON_API_KEY must be set (config.py or environment variables).\n")
