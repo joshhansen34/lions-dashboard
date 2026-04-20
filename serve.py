@@ -15,15 +15,40 @@ import os
 import base64
 
 try:
-    import config
+    import config as _config
+    NEON_ORG_ID = getattr(_config, 'NEON_ORG_ID', None)
+    NEON_API_KEY = getattr(_config, 'NEON_API_KEY', None)
+    USERS = getattr(_config, 'USERS', {})
 except ImportError:
-    print("\n  ERROR: config.py not found.")
-    print("  Copy config.py.example to config.py and fill in your credentials.\n")
+    _config = None
+    NEON_ORG_ID = None
+    NEON_API_KEY = None
+    USERS = {}
+
+# Environment variables override config.py (used in production/Railway)
+NEON_ORG_ID  = os.environ.get("NEON_ORG_ID",  NEON_ORG_ID)
+NEON_API_KEY = os.environ.get("NEON_API_KEY", NEON_API_KEY)
+
+# Parse users from env var: "user1:pass1,user2:pass2"
+_users_env = os.environ.get("APP_USERS", "")
+if _users_env:
+    USERS = {}
+    for pair in _users_env.split(","):
+        if ":" in pair:
+            u, p = pair.split(":", 1)
+            USERS[u.strip()] = p.strip()
+
+if not NEON_ORG_ID or not NEON_API_KEY:
+    print("\n  ERROR: NEON_ORG_ID and NEON_API_KEY must be set (config.py or environment variables).\n")
+    sys.exit(1)
+
+if not USERS:
+    print("\n  ERROR: No users configured. Set APP_USERS env var or config.py USERS dict.\n")
     sys.exit(1)
 
 NEON_BASE  = "https://api.neoncrm.com"
-NEON_AUTH  = base64.b64encode(f"{config.NEON_ORG_ID}:{config.NEON_API_KEY}".encode()).decode()
-PORT       = 8765
+NEON_AUTH  = base64.b64encode(f"{NEON_ORG_ID}:{NEON_API_KEY}".encode()).decode()
+PORT       = int(os.environ.get("PORT", 8765))
 SERVE_DIR  = os.path.dirname(os.path.abspath(__file__))
 
 MIME_TYPES = {
@@ -56,7 +81,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             self._demand_auth()
             return False
-        if config.USERS.get(username) == password:
+        if USERS.get(username) == password:
             return True
         self._demand_auth()
         return False
@@ -160,7 +185,7 @@ if __name__ == "__main__":
     print("  Shakopee Lions Club - Dashboard Server")
     print(f"  Open http://localhost:{PORT}/lions-dashboard.html in Safari")
     print(f"  Serving files from: {SERVE_DIR}")
-    print(f"  Users configured: {', '.join(config.USERS.keys())}")
+    print(f"  Users configured: {', '.join(USERS.keys())}")
     print("  Press Ctrl+C to stop")
     print()
     try:
