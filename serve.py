@@ -2,17 +2,23 @@
 """
 Shakopee Lions Club - Dashboard Server
 Serves local HTML files AND proxies /v2/ requests to Neon CRM API.
+Also caches member data server-side so every browser gets a fast load.
 Run: python3 serve.py
 Open: http://localhost:8765/lions-dashboard.html
 """
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from concurrent.futures import ThreadPoolExecutor
 import urllib.request
 import urllib.error
+import threading
 import json
+import time
 import sys
 import os
 import base64
+
+# ── Credentials ───────────────────────────────────────────────────────────────
 
 try:
     import config as _config
@@ -20,31 +26,29 @@ try:
     NEON_API_KEY = getattr(_config, 'NEON_API_KEY', None)
     USERS = getattr(_config, 'USERS', {})
 except ImportError:
-    _config = None
     NEON_ORG_ID = None
     NEON_API_KEY = None
     USERS = {}
 
-# Environment variables override config.py (used in production/Railway)
 NEON_ORG_ID  = os.environ.get("NEON_ORG_ID",  NEON_ORG_ID)
 NEON_API_KEY = os.environ.get("NEON_API_KEY", NEON_API_KEY)
 
-# Build users from individual env vars: APP_USER_1=username:password, APP_USER_2=...
 for i in range(1, 10):
     pair = os.environ.get(f"APP_USER_{i}", "").strip()
     if pair and ":" in pair:
         u, p = pair.split(":", 1)
-        USERS[u.strip()] = p.strip()
+        u = u.strip().lstrip("=")
+        if u:
+            USERS[u] = p.strip()
 
 if not NEON_ORG_ID or not NEON_API_KEY:
-    print("\n  ERROR: NEON_ORG_ID and NEON_API_KEY must be set (config.py or environment variables).\n")
+    print("\n  ERROR: NEON_ORG_ID and NEON_API_KEY must be set.\n")
     sys.exit(1)
 
 if not USERS:
-    # Debug: show what env vars are present
     user_vars = {k: v for k, v in os.environ.items() if 'USER' in k or 'APP' in k}
-    print(f"\n  DEBUG env vars with USER/APP: {user_vars}")
-    print(f"\n  ERROR: No users configured. Set APP_USER_1=username:password in environment.\n")
+    print(f"\n  DEBUG env vars: {user_vars}")
+    print("\n  ERROR: No users configured. Set APP_USER_1=username:password.\n")
     sys.exit(1)
 
 NEON_BASE  = "https://api.neoncrm.com"
@@ -60,6 +64,224 @@ MIME_TYPES = {
     '.ico':  'image/x-icon',
     '.png':  'image/png',
 }
+
+# ── Member Cache ───────────────────────────────────────────────────────────────
+
+CACHE_TTL = 12 * 60 * 60  # 12 hours
+
+CUSTOM_FIELD_IDS = {
+    '138': 'hardship',
+    '139': 'cash',
+    '140': 'exitStatus',
+    '141': 'exitDate',
+    '81':  'joinDate',
+    '82':  'partner',
+    '84':  'lionsNumber',
+    '86':  'sponsor',
+}
+
+_cache = {'members': None, 'loaded_at': None, 'loading': False, 'error': None}
+_cache_lock = threading.Lock()
+
+
+def neon_get(path):
+    url = NEON_BASE + path
+    req = urllib.request.Request(url)
+    req.add_header("Authorization", f"Basic {NEON_AUTH}")
+    req.add_header("Accept", "application/json")
+    req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        print(f"  [neon] HTTP {e.code} {path}")
+        return None
+    except Exception as e:
+        print(f"  [neon] Error {path}: {e}")
+        return None
+
+
+def fetch_account_ids():
+    ids = []
+    page, total = 0, 1
+    while page < total:
+        data = neon_get(f"/v2/accounts?userType=INDIVIDUAL&pageSize=200&currentPage={page}")
+        if not data:
+            break
+        total = int((data.get('pagination') or {}).get('totalPages', 1))
+        for a in data.get('accounts') or []:
+            ids.append(str(a['accountId']))
+        page += 1
+    return ids
+
+
+def fetch_one_account(aid):
+    return neon_get(f"/v2/accounts/{aid}")
+
+
+def fetch_one_memberships(aid):
+    data = neon_get(f"/v2/accounts/{aid}/memberships")
+    return (data or {}).get('memberships') or []
+
+
+def parse_custom_fields(cfs):
+    result = {}
+    for cf in (cfs or []):
+        key = CUSTOM_FIELD_IDS.get(str(cf.get('id', '')))
+        if not key:
+            continue
+        val = cf.get('value') or ''
+        if not val:
+            opts = cf.get('optionValues') or []
+            val = opts[0].get('name', '') if opts else ''
+        result[key] = val or ''
+    return result
+
+
+def build_raw_member(data):
+    acct = data.get('individualAccount') or data
+    contact = acct.get('primaryContact') or {}
+
+    first = (contact.get('firstName') or acct.get('firstName') or '').strip()
+    last  = (contact.get('lastName')  or acct.get('lastName')  or '').strip()
+    email = (contact.get('email1')    or acct.get('email')     or '').strip().lower()
+
+    addresses = contact.get('addresses') or []
+    addr = next((a for a in addresses if a.get('isPrimary')), addresses[0] if addresses else {})
+    state_val = addr.get('stateProvince') or ''
+    if isinstance(state_val, dict):
+        state_val = state_val.get('code', '')
+
+    phones = contact.get('phones') or []
+    phone_obj = next((p for p in phones if p.get('isPrimary')), phones[0] if phones else {})
+
+    cf = parse_custom_fields(acct.get('accountCustomFields') or [])
+    mem_status = (acct.get('accountCurrentMembershipStatus') or '').lower()
+
+    return {
+        'id':           str(acct.get('accountId', '')),
+        'firstName':    first,
+        'lastName':     last,
+        'email':        email,
+        'phone':        phone_obj.get('phoneNumber', '') or '',
+        'addressLine1': addr.get('addressLine1', '') or '',
+        'addressLine2': addr.get('addressLine2', '') or '',
+        'city':         addr.get('city', '') or '',
+        'state':        state_val,
+        'zip':          addr.get('zipCode', '') or '',
+        'membershipStatus': 'current' if mem_status == 'active' else ('expired' if mem_status == 'lapsed' else ''),
+        'membershipType':   '',
+        'membershipExpiry': '',
+        'hardship':     cf.get('hardship', '') == 'Yes',
+        'cash':         cf.get('cash', '') == 'Yes',
+        'exitStatus':   cf.get('exitStatus', ''),
+        'exitDate':     cf.get('exitDate', ''),
+        'joinDate':     cf.get('joinDate', ''),
+        'partner':      cf.get('partner', ''),
+        'lionsNumber':  cf.get('lionsNumber', ''),
+        'sponsor':      cf.get('sponsor', ''),
+        'loaded':       True,
+        '_status':      mem_status,
+        '_active':      mem_status == 'active',
+    }
+
+
+def do_load_members():
+    try:
+        print("  [cache] Starting member load from Neon...")
+        t0 = time.time()
+
+        # Step 1: All account IDs
+        all_ids = fetch_account_ids()
+        print(f"  [cache] {len(all_ids)} account IDs ({time.time()-t0:.0f}s)")
+
+        # Step 2: Fetch all accounts in batches of 10
+        raw_accounts = []
+        for i in range(0, len(all_ids), 10):
+            batch = all_ids[i:i+10]
+            with ThreadPoolExecutor(max_workers=10) as ex:
+                results = list(ex.map(fetch_one_account, batch))
+            raw_accounts.extend(r for r in results if r)
+            time.sleep(0.15)
+        print(f"  [cache] {len(raw_accounts)} accounts fetched ({time.time()-t0:.0f}s)")
+
+        # Step 3: Parse, filter to members, deduplicate
+        raw_members = []
+        seen = {}
+        for data in raw_accounts:
+            m = build_raw_member(data)
+            if not m['_status']:
+                continue
+            key = f"{m['firstName'].lower()}|{m['lastName'].lower()}|{m['email']}"
+            if key not in seen:
+                seen[key] = len(raw_members)
+                raw_members.append(m)
+            elif m['_active'] and not raw_members[seen[key]]['_active']:
+                raw_members[seen[key]] = m
+        print(f"  [cache] {len(raw_members)} members after filter/dedup ({time.time()-t0:.0f}s)")
+
+        # Step 4: Fetch memberships, finalize
+        confirmed = []
+        for i in range(0, len(raw_members), 10):
+            batch = raw_members[i:i+10]
+            aids = [m['id'] for m in batch]
+            with ThreadPoolExecutor(max_workers=10) as ex:
+                memberships_list = list(ex.map(fetch_one_memberships, aids))
+            for j, mems in enumerate(memberships_list):
+                if not mems:
+                    continue
+                active = next((m for m in mems if m.get('isActive') and m.get('primaryActiveMembership')), None)
+                if not active:
+                    active = next((m for m in mems if m.get('isActive')), None)
+                latest = sorted(mems, key=lambda m: m.get('termEndDate') or '', reverse=True)[0]
+                target = active or latest
+                batch[j]['membershipType']   = (target.get('membershipLevel') or {}).get('name', '') or ''
+                batch[j]['membershipExpiry'] = target.get('termEndDate', '') or ''
+                batch[j]['membershipStatus'] = 'current' if active else 'expired'
+                del batch[j]['_status']
+                del batch[j]['_active']
+                confirmed.append(batch[j])
+            time.sleep(0.15)
+
+        confirmed.sort(key=lambda m: (m['lastName'] + m['firstName']).lower())
+        print(f"  [cache] Done. {len(confirmed)} members in {time.time()-t0:.0f}s")
+
+        with _cache_lock:
+            _cache['members']   = confirmed
+            _cache['loaded_at'] = time.time()
+            _cache['loading']   = False
+            _cache['error']     = None
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        with _cache_lock:
+            _cache['loading'] = False
+            _cache['error']   = str(e)
+
+
+def get_cache_state():
+    with _cache_lock:
+        now = time.time()
+        loaded_at = _cache['loaded_at']
+        valid = loaded_at and (now - loaded_at) < CACHE_TTL and _cache['members'] is not None
+        if valid:
+            return 'ready', _cache['members'], loaded_at
+        if not _cache['loading']:
+            _cache['loading'] = True
+            threading.Thread(target=do_load_members, daemon=True).start()
+        return 'loading', None, None
+
+
+def invalidate_cache():
+    with _cache_lock:
+        _cache['members']   = None
+        _cache['loaded_at'] = None
+        _cache['error']     = None
+        _cache['loading']   = False
+
+
+# ── HTTP Handler ───────────────────────────────────────────────────────────────
 
 class Handler(BaseHTTPRequestHandler):
 
@@ -94,6 +316,15 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"Login required")
 
+    def send_json(self, data, status=200):
+        body = json.dumps(data).encode()
+        self.send_response(status)
+        self.send_cors_headers()
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", len(body))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_cors_headers()
@@ -102,10 +333,26 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.check_auth():
             return
+        if self.path == '/members' or self.path.startswith('/members?'):
+            self.handle_members_get()
+            return
         if self.path.startswith('/v2/'):
             self.proxy_request("GET", None)
             return
         self.serve_file()
+
+    def do_POST(self):
+        if not self.check_auth():
+            return
+        if self.path == '/members/refresh':
+            invalidate_cache()
+            get_cache_state()  # triggers reload
+            self.send_json({'status': 'loading'})
+            return
+        if self.path.startswith('/v2/'):
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length) if length else None
+            self.proxy_request("POST", body)
 
     def do_PATCH(self):
         if not self.check_auth():
@@ -115,33 +362,32 @@ class Handler(BaseHTTPRequestHandler):
             body = self.rfile.read(length) if length else None
             self.proxy_request("PATCH", body)
 
-    def do_POST(self):
-        if not self.check_auth():
-            return
-        if self.path.startswith('/v2/'):
-            length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(length) if length else None
-            self.proxy_request("POST", body)
+    def handle_members_get(self):
+        status, members, loaded_at = get_cache_state()
+        if status == 'loading':
+            self.send_json({'status': 'loading'})
+        else:
+            self.send_json({
+                'status': 'ready',
+                'members': members,
+                'loadedAt': loaded_at,
+                'count': len(members),
+            })
 
     def serve_file(self):
         path = self.path.split('?')[0]
         if path == '/':
             path = '/lions-dashboard.html'
-
         filepath = os.path.join(SERVE_DIR, path.lstrip('/'))
-
         if not os.path.exists(filepath) or not os.path.isfile(filepath):
             self.send_response(404)
             self.end_headers()
             self.wfile.write(b'Not found')
             return
-
         ext  = os.path.splitext(filepath)[1]
         mime = MIME_TYPES.get(ext, 'text/plain')
-
         with open(filepath, 'rb') as f:
             data = f.read()
-
         self.send_response(200)
         self.send_header('Content-Type', mime)
         self.send_header('Content-Length', len(data))
@@ -151,12 +397,10 @@ class Handler(BaseHTTPRequestHandler):
     def proxy_request(self, method, body):
         target = NEON_BASE + self.path
         print(f"\n  -> {method} {self.path}")
-
         req = urllib.request.Request(target, data=body, method=method)
         req.add_header("Authorization", f"Basic {NEON_AUTH}")
         req.add_header("Content-Type", "application/json")
         req.add_header("Accept", "application/json")
-
         try:
             with urllib.request.urlopen(req) as resp:
                 data = resp.read()
@@ -181,14 +425,16 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
 
+
 if __name__ == "__main__":
     print()
     print("  Shakopee Lions Club - Dashboard Server")
-    print(f"  Open http://localhost:{PORT}/lions-dashboard.html in Safari")
-    print(f"  Serving files from: {SERVE_DIR}")
-    print(f"  Users configured: {', '.join(USERS.keys())}")
+    print(f"  Open http://localhost:{PORT}/lions-dashboard.html")
+    print(f"  Users: {', '.join(USERS.keys())}")
     print("  Press Ctrl+C to stop")
     print()
+    # Warm the cache on startup
+    get_cache_state()
     try:
         HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
     except KeyboardInterrupt:

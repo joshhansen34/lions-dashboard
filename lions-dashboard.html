@@ -351,192 +351,58 @@ function applyCustomFieldValues(member, fields) {
   }
 }
 
-function saveCache(members, fieldIds) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ members, fieldIds, ts: Date.now() }));
-  } catch(e) { console.warn('Cache save failed:', e); }
-}
 
-function loadCache() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (Date.now() - data.ts > CACHE_TTL) return null;
-    return data;
-  } catch { return null; }
-}
+let _pollTimer = null;
 
 async function loadMembers(manual = false) {
   document.getElementById('sync-btn').disabled = true;
-  document.getElementById('member-table-body').innerHTML = '<tr><td colspan="6"><div class="loading"><div class="spinner"></div>Loading...</div></td></tr>';
-  document.getElementById('pagination').style.display = 'none';
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
 
-  // Serve from cache unless manually refreshing
-  if (!manual) {
-    const cached = loadCache();
-    if (cached) {
-      allMembers = cached.members;
-      customFieldIds = cached.fieldIds || {};
-      document.getElementById('last-sync').textContent = 'Cached ' + new Date(cached.ts).toLocaleTimeString();
+  if (manual) {
+    setProgress('Requesting refresh...', 5);
+    try { await fetch('/members/refresh', { method: 'POST' }); } catch(e) { /* non-fatal */ }
+  }
+
+  await pollForMembers();
+}
+
+async function pollForMembers() {
+  setProgress('Loading members...', 10);
+  document.getElementById('member-table-body').innerHTML =
+    '<tr><td colspan="6"><div class="loading"><div class="spinner"></div>Loading members — this takes 2-3 minutes on first load…</div></td></tr>';
+
+  async function check() {
+    try {
+      const res = await fetch('/members');
+      if (!res.ok) throw new Error('Server error ' + res.status);
+      const data = await res.json();
+      if (data.status === 'loading') {
+        setProgress('Loading members from Neon…', 30);
+        return; // keep polling
+      }
+      if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+      allMembers = data.members || [];
+      const ts = data.loadedAt ? new Date(data.loadedAt * 1000).toLocaleTimeString() : '';
+      document.getElementById('last-sync').textContent = ts ? 'Cached ' + ts : '';
+      setProgress('Done!', 100);
       updateStats();
       applyFilters();
+      showToast(`${allMembers.length} members loaded`, false, 4000);
       document.getElementById('sync-btn').disabled = false;
-      return;
+    } catch(e) {
+      if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+      console.error(e);
+      showToast('Error loading members: ' + e.message, true);
+      document.getElementById('load-progress').style.display = 'none';
+      document.getElementById('member-table-body').innerHTML =
+        '<tr><td colspan="6"><div class="empty-state">Failed to load. Check connection and refresh.</div></td></tr>';
+      document.getElementById('sync-btn').disabled = false;
     }
   }
 
-  try {
-    // Step 1: Get all individual account IDs from the list endpoint
-    setProgress('Scanning accounts...', 5);
-    let page = 0, totalPages = 1;
-    const allIds = [];
-    do {
-      const res = await neonGet(`/accounts?userType=INDIVIDUAL&pageSize=200&currentPage=${page}`);
-      if (!res.ok) throw new Error('Failed to fetch account list');
-      const data = await res.json();
-      totalPages = data.pagination?.totalPages || 1;
-      for (const a of (data.accounts || [])) allIds.push(String(a.accountId));
-      setProgress(`Scanning accounts... (${allIds.length} found)`, 5 + Math.round((page / totalPages) * 15));
-      page++;
-    } while (page < totalPages);
-
-    // Step 2: Try customFields endpoint
-    for (const url of ['/customFields?category=Account', '/customFields']) {
-      try {
-        const cfRes = await neonGet(url);
-        if (cfRes.ok) { extractFieldIds(await cfRes.json()); break; }
-      } catch(e) { /* non-fatal */ }
-    }
-
-    // Step 3: Batch-fetch every individual account to get full details + custom fields.
-    // We keep ALL accounts here — no membership filter. The ~500 non-members (donors,
-    // event attendees) will have no membershipStatus and can be cleaned up via Exit Status.
-    setProgress('Loading accounts...', 20);
-    const rawMembers = [];
-    const seen = {};
-
-    for (let i = 0; i < allIds.length; i += BATCH) {
-      const batch = allIds.slice(i, i + BATCH);
-      const results = await Promise.all(
-        batch.map(id => neonGet(`/accounts/${id}`).then(r => r.ok ? r.json() : null).catch(() => null))
-      );
-      await new Promise(r => setTimeout(r, 150));
-
-      for (const data of results) {
-        if (!data) continue;
-        const acct = data.individualAccount || data;
-        const cf = acct.accountCustomFields || [];
-        extractFieldIds(cf);
-
-        const contact = acct.primaryContact || {};
-        const firstName = (contact.firstName || acct.firstName || '').trim();
-        const lastName  = (contact.lastName  || acct.lastName  || '').trim();
-        const email     = (contact.email1    || acct.email     || '').toLowerCase().trim();
-
-        // Skip completely blank accounts (no name, no email)
-        if (!firstName && !lastName && !email) continue;
-
-        const memStatus = (acct.accountCurrentMembershipStatus || '').toLowerCase();
-        const isActive  = memStatus === 'active';
-        const key = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${email}`;
-
-        const addresses = contact.addresses || [];
-        const addr  = addresses.find(a => a.isPrimary) || addresses[0] || {};
-        const phones = contact.phones || [];
-        const phone = phones.find(p => p.isPrimary) || phones[0] || {};
-
-        const member = {
-          id: String(acct.accountId),
-          firstName, lastName, email,
-          membershipStatus: isActive ? 'current' : (memStatus === 'lapsed' ? 'expired' : ''),
-          membershipType: '', membershipExpiry: '',
-          hardship: false, cash: false,
-          exitStatus: '', exitDate: '',
-          joinDate: '', sponsor: '', partner: '', lionsNumber: '',
-          addressLine1: addr.addressLine1 || '',
-          addressLine2: addr.addressLine2 || '',
-          city: addr.city || '',
-          state: addr.stateProvince || '',
-          zip: addr.zipCode || '',
-          phone: phone.phoneNumber || '',
-          loaded: false,
-          _isActive: isActive,
-          _cf: cf
-        };
-
-        const existing = seen[key];
-        if (existing === undefined) {
-          seen[key] = rawMembers.length;
-          rawMembers.push(member);
-        } else if (isActive && !rawMembers[existing]._isActive) {
-          rawMembers[existing] = member;
-        }
-      }
-
-      const pct = 20 + Math.round(((i + BATCH) / allIds.length) * 50);
-      setProgress(`Loading accounts... (${rawMembers.length} found, ${Math.min(i + BATCH, allIds.length)}/${allIds.length} scanned)`, pct);
-    }
-
-    // Step 4: Apply custom field values now that all field IDs are accumulated
-    for (const m of rawMembers) {
-      applyCustomFieldValues(m, m._cf);
-      delete m._cf;
-      delete m._isActive;
-    }
-
-    // Step 5: Fetch memberships for ALL accounts — this is the authoritative filter.
-    setProgress(`Checking memberships... (0/${rawMembers.length})`, 70);
-    const confirmedMembers = [];
-    let memFails = 0;
-
-    for (let i = 0; i < rawMembers.length; i += BATCH) {
-      const batch = rawMembers.slice(i, i + BATCH);
-      const results = await Promise.all(
-        batch.map(m => neonGet(`/accounts/${m.id}/memberships`)
-          .then(r => r.ok ? r.json() : (memFails++, null))
-          .catch(() => (memFails++, null)))
-      );
-      await new Promise(r => setTimeout(r, 150));
-
-      for (let j = 0; j < batch.length; j++) {
-        const data = results[j];
-        if (!data) continue;
-        const mems = data.memberships || [];
-        if (mems.length === 0) continue;
-        const active = mems.find(m => m.isActive && m.primaryActiveMembership);
-        const latest = [...mems].sort((a, b) => new Date(b.termEndDate || 0) - new Date(a.termEndDate || 0))[0];
-        const target = active || latest;
-        if (target) {
-          batch[j].membershipType   = target.membershipLevel?.name || '';
-          batch[j].membershipExpiry = target.termEndDate || '';
-          // Trust Neon's isActive flag — don't override with date math
-          batch[j].membershipStatus = active ? 'current' : 'expired';
-        }
-        batch[j].loaded = true;
-        confirmedMembers.push(batch[j]);
-      }
-      const pct = 70 + Math.round(((i + BATCH) / rawMembers.length) * 25);
-      setProgress(`Checking memberships... (${confirmedMembers.length} members, ${Math.min(i + BATCH, rawMembers.length)}/${rawMembers.length} checked)`, pct);
-    }
-
-    allMembers = confirmedMembers.sort((a, b) => (a.lastName + a.firstName).localeCompare(b.lastName + b.firstName));
-
-    saveCache(allMembers, customFieldIds);
-    setProgress('Done!', 100);
-    document.getElementById('last-sync').textContent = 'Synced ' + new Date().toLocaleTimeString();
-    updateStats();
-    applyFilters();
-    const foundFields = Object.keys(customFieldIds).join(', ') || 'none';
-    showToast(`${allMembers.length} members · scanned: ${allIds.length} IDs / ${rawMembers.length} accounts · mem fails: ${memFails} · fields: ${foundFields}`, false, 10000);
-
-  } catch(e) {
-    console.error(e);
-    showToast('Error: ' + e.message, true);
-    document.getElementById('load-progress').style.display = 'none';
-    document.getElementById('member-table-body').innerHTML = '<tr><td colspan="6"><div class="empty-state">Failed to load. Check connection and refresh.</div></td></tr>';
-  }
-  document.getElementById('sync-btn').disabled = false;
+  await check();
+  // If still loading after first check, start polling every 5s
+  _pollTimer = setInterval(check, 5000);
 }
 
 // Fallback: re-fetch a single member's account details if needed
