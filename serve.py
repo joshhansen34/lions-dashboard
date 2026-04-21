@@ -368,6 +368,14 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        # checkin.shakopeelions.com → redirect to /attendance/
+        host = self.headers.get('Host', '')
+        if host.startswith('checkin.') and self.path == '/':
+            self.send_response(302)
+            self.send_header('Location', '/attendance/')
+            self.end_headers()
+            return
+
         # Attendance app — no auth required (static files + limited member data only)
         if self.path == '/attendance/members':
             self.handle_attendance_members()
