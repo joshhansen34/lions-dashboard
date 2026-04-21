@@ -87,6 +87,28 @@ CUSTOM_FIELD_IDS = {
 
 _cache = {'members': None, 'loaded_at': None, 'loading': False, 'error': None}
 _cache_lock = threading.Lock()
+CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'members_cache.json')
+
+
+def save_cache_to_disk(members, loaded_at):
+    try:
+        with open(CACHE_FILE, 'w') as f:
+            json.dump({'members': members, 'loaded_at': loaded_at}, f)
+        print(f"  [cache] Saved {len(members)} members to disk")
+    except Exception as e:
+        print(f"  [cache] Failed to save to disk: {e}")
+
+
+def load_cache_from_disk():
+    try:
+        if not os.path.exists(CACHE_FILE):
+            return None, None
+        with open(CACHE_FILE) as f:
+            data = json.load(f)
+        return data.get('members'), data.get('loaded_at')
+    except Exception as e:
+        print(f"  [cache] Failed to load from disk: {e}")
+        return None, None
 
 
 def neon_get(path):
@@ -251,11 +273,13 @@ def do_load_members():
         confirmed.sort(key=lambda m: (m['lastName'] + m['firstName']).lower())
         print(f"  [cache] Done. {len(confirmed)} members in {time.time()-t0:.0f}s")
 
+        loaded_at = time.time()
         with _cache_lock:
             _cache['members']   = confirmed
-            _cache['loaded_at'] = time.time()
+            _cache['loaded_at'] = loaded_at
             _cache['loading']   = False
             _cache['error']     = None
+        save_cache_to_disk(confirmed, loaded_at)
 
     except Exception as e:
         import traceback
@@ -272,6 +296,14 @@ def get_cache_state():
         valid = loaded_at and (now - loaded_at) < CACHE_TTL and _cache['members'] is not None
         if valid:
             return 'ready', _cache['members'], loaded_at
+        # Try disk cache before hitting Neon
+        if _cache['members'] is None and not _cache['loading']:
+            members, disk_loaded_at = load_cache_from_disk()
+            if members and disk_loaded_at and (now - disk_loaded_at) < CACHE_TTL:
+                print("  [cache] Loaded from disk cache")
+                _cache['members']   = members
+                _cache['loaded_at'] = disk_loaded_at
+                return 'ready', members, disk_loaded_at
         if not _cache['loading']:
             _cache['loading'] = True
             threading.Thread(target=do_load_members, daemon=True).start()
