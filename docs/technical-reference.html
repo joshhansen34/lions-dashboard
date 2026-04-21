@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shakopee Lions Club — Technical Reference</title>
+<style>
+  :root {
+    --gold: #C9A84C; --navy: #0D1B2A; --navy-mid: #162236; --navy-light: #1E3050;
+    --border: #2a4060; --white: #F5F0E8; --gray: #8A9BB0; --green: #27AE60;
+    --red: #C0392B; --amber: #E67E22; --mono: 'Courier New', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--navy); color: var(--white); font-family: var(--sans); font-size: 14px; line-height: 1.6; }
+  a { color: var(--gold); }
+
+  header { background: var(--navy-mid); border-bottom: 3px solid var(--gold); padding: 20px 40px; display: flex; align-items: center; gap: 16px; }
+  .logo { font-size: 28px; }
+  .header-text h1 { font-size: 22px; color: var(--gold); letter-spacing: 1px; }
+  .header-text p { color: var(--gray); font-size: 12px; margin-top: 2px; }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+
+  .toc { background: var(--navy-mid); border: 1px solid var(--border); border-top: 3px solid var(--gold); padding: 24px 28px; margin-bottom: 40px; }
+  .toc h2 { color: var(--gold); font-size: 13px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 14px; }
+  .toc ol { padding-left: 20px; }
+  .toc li { margin-bottom: 6px; }
+  .toc a { color: var(--gray); text-decoration: none; font-size: 13px; }
+  .toc a:hover { color: var(--gold); }
+
+  section { margin-bottom: 48px; }
+  h2 { font-size: 20px; color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 20px; letter-spacing: .5px; }
+  h3 { font-size: 15px; color: var(--white); margin: 24px 0 10px; }
+  p { color: #b0c0d8; margin-bottom: 12px; }
+  ul, ol { color: #b0c0d8; padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 6px; }
+
+  .card { background: var(--navy-mid); border: 1px solid var(--border); border-radius: 4px; padding: 20px 24px; margin-bottom: 16px; }
+  .card h3 { margin-top: 0; color: var(--gold); font-size: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+  thead tr { background: var(--navy-light); }
+  thead th { padding: 10px 14px; text-align: left; color: var(--gold); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); }
+  tbody td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: #b0c0d8; vertical-align: top; }
+  tbody tr:hover { background: rgba(255,255,255,.03); }
+
+  code { font-family: var(--mono); background: var(--navy-light); color: var(--gold); padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+  pre { background: var(--navy-light); border: 1px solid var(--border); border-left: 3px solid var(--gold); padding: 16px 20px; border-radius: 4px; overflow-x: auto; margin-bottom: 16px; }
+  pre code { background: none; padding: 0; color: #a8d8a8; font-size: 13px; line-height: 1.7; }
+
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+  .badge-green { background: rgba(39,174,96,.15); border: 1px solid var(--green); color: var(--green); }
+  .badge-gold { background: rgba(201,168,76,.15); border: 1px solid var(--gold); color: var(--gold); }
+  .badge-gray { background: rgba(138,155,176,.15); border: 1px solid var(--gray); color: var(--gray); }
+
+  .arch-diagram { background: var(--navy-mid); border: 1px solid var(--border); border-radius: 4px; padding: 28px; margin-bottom: 20px; font-family: var(--mono); font-size: 12px; color: var(--gray); line-height: 2; }
+  .arch-diagram .highlight { color: var(--gold); }
+  .arch-diagram .green { color: var(--green); }
+  .arch-diagram .arrow { color: var(--border); }
+
+  .warn { background: rgba(192,57,43,.1); border: 1px solid var(--red); border-radius: 4px; padding: 12px 16px; margin-bottom: 16px; color: #e8a090; font-size: 13px; }
+  .info { background: rgba(201,168,76,.08); border: 1px solid var(--gold); border-radius: 4px; padding: 12px 16px; margin-bottom: 16px; color: #d4b87a; font-size: 13px; }
+
+  @media print {
+    body { background: #fff; color: #000; }
+    header { background: #fff; border-bottom: 3px solid #C9A84C; }
+    .header-text h1 { color: #0D1B2A; }
+    .header-text p, .toc a, p, li, tbody td { color: #333; }
+    h2 { color: #0D1B2A; border-color: #ccc; }
+    h3 { color: #000; }
+    .card, .toc, pre, .arch-diagram { background: #f5f5f5; border-color: #ccc; }
+    code { background: #eee; color: #333; }
+    pre code { color: #333; }
+    a { color: #0D1B2A; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🦁</div>
+  <div class="header-text">
+    <h1>SHAKOPEE LIONS CLUB — TECHNICAL REFERENCE</h1>
+    <p>System architecture, configuration, and infrastructure documentation · Last updated April 2026</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#architecture">System Architecture</a></li>
+      <li><a href="#urls">URLs & Endpoints</a></li>
+      <li><a href="#railway">Railway Deployment</a></li>
+      <li><a href="#dns">DNS Configuration</a></li>
+      <li><a href="#neon">Neon CRM Integration</a></li>
+      <li><a href="#env">Environment Variables</a></li>
+      <li><a href="#cache">Member Cache</a></li>
+      <li><a href="#auth">Authentication</a></li>
+      <li><a href="#components">Application Components</a></li>
+      <li><a href="#dues">Dues & Billing</a></li>
+      <li><a href="#repo">GitHub Repository</a></li>
+    </ol>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <section id="architecture">
+    <h2>1. System Architecture</h2>
+    <p>The system consists of two web applications served by a single Python server, deployed to Railway and accessible via custom subdomains on shakopeelions.com. Member data is sourced from Neon CRM via REST API and cached server-side.</p>
+
+    <div class="arch-diagram">
+<span class="highlight">[ Browser / iPad ]</span>
+        |
+        | HTTPS
+        v
+<span class="highlight">[ GoDaddy DNS ]</span>
+  dashboard.shakopeelions.com  ──CNAME──&gt;  x4ftx3m3.up.railway.app
+  checkin.shakopeelions.com    ──CNAME──&gt;  8cbpnat3.up.railway.app
+        |
+        v
+<span class="highlight">[ Railway — lions-dashboard service ]</span>
+  Python HTTP Server (serve.py) on PORT
+  ├── GET /                  → lions-dashboard.html  (requires Basic Auth)
+  ├── GET /attendance/       → attendance/dist/       (no auth)
+  ├── GET /attendance/members → slim member JSON      (no auth)
+  ├── GET /members           → full member JSON       (requires Basic Auth)
+  ├── POST /members/refresh  → invalidate cache       (requires Basic Auth)
+  └── /v2/*                  → proxy to Neon CRM API  (requires Basic Auth)
+        |
+        | HTTPS + Basic Auth
+        v
+<span class="green">[ Neon CRM — api.neoncrm.com ]</span>
+  Org: shakopeelions
+  ~615 accounts → filtered to ~120 active members
+    </div>
+  </section>
+
+  <!-- URLS -->
+  <section id="urls">
+    <h2>2. URLs & Endpoints</h2>
+    <table>
+      <thead><tr><th>URL</th><th>What it is</th><th>Auth required</th></tr></thead>
+      <tbody>
+        <tr><td><code>dashboard.shakopeelions.com</code></td><td>Member management dashboard</td><td>Yes — Basic Auth</td></tr>
+        <tr><td><code>checkin.shakopeelions.com</code></td><td>Meeting check-in app (iPad)</td><td>No</td></tr>
+        <tr><td><code>lions-dashboard-production.up.railway.app</code></td><td>Raw Railway URL (both apps)</td><td>Yes for dashboard</td></tr>
+        <tr><td><code>/members</code></td><td>Full cached member list (JSON)</td><td>Yes</td></tr>
+        <tr><td><code>/attendance/members</code></td><td>Slim member list for check-in (JSON)</td><td>No</td></tr>
+        <tr><td><code>/members/refresh</code></td><td>Force re-fetch from Neon CRM</td><td>Yes</td></tr>
+        <tr><td><code>/v2/*</code></td><td>Proxy to Neon CRM API</td><td>Yes</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- RAILWAY -->
+  <section id="railway">
+    <h2>3. Railway Deployment</h2>
+    <div class="card">
+      <h3>Service Details</h3>
+      <table>
+        <tbody>
+          <tr><td style="width:180px;color:var(--gray);">Project</td><td><code>lions-dashboard</code></td></tr>
+          <tr><td style="color:var(--gray);">Service</td><td><code>lions-dashboard</code></td></tr>
+          <tr><td style="color:var(--gray);">Railway URL</td><td><code>lions-dashboard-production.up.railway.app</code></td></tr>
+          <tr><td style="color:var(--gray);">Plan</td><td>Hobby ($5/month)</td></tr>
+          <tr><td style="color:var(--gray);">Builder</td><td>Nixpacks (Python auto-detected)</td></tr>
+          <tr><td style="color:var(--gray);">Start command</td><td><code>python3 serve.py</code></td></tr>
+          <tr><td style="color:var(--gray);">Restart policy</td><td>On failure</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Deployments are triggered automatically when code is pushed to the <code>main</code> branch of the GitHub repository. Railway detects Python via <code>requirements.txt</code> and <code>Procfile</code>.</p>
+    <div class="info">⚠ Railway uses an ephemeral filesystem — the member disk cache (<code>members_cache.json</code>) persists within a deployment but is wiped on new deploys. The first browser load after a new deployment will trigger a full Neon reload (~2-3 minutes).</div>
+  </section>
+
+  <!-- DNS -->
+  <section id="dns">
+    <h2>4. DNS Configuration</h2>
+    <p>DNS is managed through GoDaddy for <code>shakopeelions.com</code>.</p>
+    <table>
+      <thead><tr><th>Type</th><th>Name</th><th>Value</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>CNAME</code></td><td><code>dashboard</code></td><td><code>x4ftx3m3.up.railway.app</code></td><td>Dashboard app</td></tr>
+        <tr><td><code>TXT</code></td><td><code>_railway-verify.dashboard</code></td><td><code>railway-verify=42d8bdb1…</code></td><td>Railway domain verification</td></tr>
+        <tr><td><code>CNAME</code></td><td><code>checkin</code></td><td><code>8cbpnat3.up.railway.app</code></td><td>Check-in app</td></tr>
+        <tr><td><code>TXT</code></td><td><code>_railway-verify.checkin</code></td><td><code>railway-verify=7a5564ae…</code></td><td>Railway domain verification</td></tr>
+      </tbody>
+    </table>
+    <p>TTL is set to 30 minutes on all records. Both CNAMEs point to the same Railway deployment — routing to the correct app is handled by <code>serve.py</code> based on the <code>Host</code> header.</p>
+  </section>
+
+  <!-- NEON CRM -->
+  <section id="neon">
+    <h2>5. Neon CRM Integration</h2>
+    <div class="card">
+      <h3>Connection Details</h3>
+      <table>
+        <tbody>
+          <tr><td style="width:180px;color:var(--gray);">Organization ID</td><td><code>shakopeelionsclub</code></td></tr>
+          <tr><td style="color:var(--gray);">API Base URL</td><td><code>https://api.neoncrm.com/v2</code></td></tr>
+          <tr><td style="color:var(--gray);">Auth method</td><td>HTTP Basic Auth (org ID : API key)</td></tr>
+          <tr><td style="color:var(--gray);">API key stored</td><td>Railway environment variable <code>NEON_API_KEY</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Custom Field IDs</h3>
+    <p>These fields were created in Neon CRM and are used by the dashboard. IDs are hardcoded in <code>serve.py</code> since the <code>/v2/customFields</code> endpoint doesn't reliably return newer fields.</p>
+    <table>
+      <thead><tr><th>Field ID</th><th>Field Name</th><th>Type</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>138</code></td><td>Hardship Waiver</td><td>Checkbox (Yes)</td><td>Member doesn't pay dues</td></tr>
+        <tr><td><code>139</code></td><td>Pays Cash/Check</td><td>Checkbox (Yes)</td><td>Treasurer handles payment manually</td></tr>
+        <tr><td><code>140</code></td><td>Exit Status</td><td>Dropdown</td><td>Deceased or Resigned</td></tr>
+        <tr><td><code>141</code></td><td>Exit Date</td><td>Text</td><td>Date member left club</td></tr>
+        <tr><td><code>81</code></td><td>Join Date</td><td>Text</td><td>Date member joined</td></tr>
+        <tr><td><code>82</code></td><td>Partner/Spouse Name</td><td>Text</td><td>Member's partner name</td></tr>
+        <tr><td><code>84</code></td><td>Lions International Number</td><td>Text</td><td>Lions Int'l member ID</td></tr>
+        <tr><td><code>86</code></td><td>Sponsor</td><td>Text</td><td>Member who sponsored this member</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Member Load Process</h3>
+    <ol>
+      <li>Fetch all account IDs from <code>GET /v2/accounts?userType=INDIVIDUAL</code> (paginated, 200/page)</li>
+      <li>Fetch each account individually in batches of 10 concurrent requests</li>
+      <li>Filter to accounts with non-empty <code>accountCurrentMembershipStatus</code></li>
+      <li>Deduplicate by firstName+lastName+email, keeping active over lapsed</li>
+      <li>Fetch memberships for each member to get type and expiry date</li>
+      <li>Sort alphabetically by last name, save to in-memory cache and disk</li>
+    </ol>
+    <p>Total time: approximately 2–3 minutes for ~120 members. Cache TTL is 12 hours.</p>
+  </section>
+
+  <!-- ENV VARS -->
+  <section id="env">
+    <h2>6. Environment Variables</h2>
+    <p>Set in Railway → Service → Variables.</p>
+    <table>
+      <thead><tr><th>Variable</th><th>Value / Format</th><th>Required</th></tr></thead>
+      <tbody>
+        <tr><td><code>NEON_ORG_ID</code></td><td><code>shakopeelionsclub</code></td><td><span class="badge badge-green">Required</span></td></tr>
+        <tr><td><code>NEON_API_KEY</code></td><td>Neon CRM API key (from Neon admin)</td><td><span class="badge badge-green">Required</span></td></tr>
+        <tr><td><code>APP_USER_1</code></td><td><code>username:password</code></td><td><span class="badge badge-green">Required</span></td></tr>
+        <tr><td><code>APP_USER_2</code></td><td><code>username:password</code> (optional extra user)</td><td><span class="badge badge-gray">Optional</span></td></tr>
+        <tr><td><code>PORT</code></td><td>Set automatically by Railway</td><td><span class="badge badge-gray">Auto</span></td></tr>
+      </tbody>
+    </table>
+    <p>Up to 9 users can be configured via <code>APP_USER_1</code> through <code>APP_USER_9</code>. Current users: <code>admin</code>, <code>treasurer</code>.</p>
+    <div class="warn">⚠ Never commit credentials to GitHub. The <code>config.py</code> local file (used for local development only) is in <code>.gitignore</code>.</div>
+  </section>
+
+  <!-- CACHE -->
+  <section id="cache">
+    <h2>7. Member Cache</h2>
+    <table>
+      <tbody>
+        <tr><td style="width:180px;color:var(--gray);">In-memory cache</td><td>Python dict in <code>serve.py</code>, lives for duration of process</td></tr>
+        <tr><td style="color:var(--gray);">Disk cache</td><td><code>members_cache.json</code> in app directory</td></tr>
+        <tr><td style="color:var(--gray);">TTL</td><td>12 hours</td></tr>
+        <tr><td style="color:var(--gray);">Manual refresh</td><td>Click ↻ Refresh button in dashboard</td></tr>
+        <tr><td style="color:var(--gray);">Startup behavior</td><td>Loads disk cache if fresh; otherwise triggers Neon reload in background</td></tr>
+      </tbody>
+    </table>
+    <p>The <code>/attendance/members</code> endpoint returns a slimmed version of the cache (id, firstName, lastName, cash, membershipStatus only) and requires no authentication, making it safe for the public-facing check-in app.</p>
+  </section>
+
+  <!-- AUTH -->
+  <section id="auth">
+    <h2>8. Authentication</h2>
+    <h3>Dashboard (HTTP Basic Auth)</h3>
+    <p>The dashboard and all <code>/v2/</code> API proxy endpoints require HTTP Basic Auth. The browser prompts for credentials on first visit and caches them for the session. Credentials are configured via <code>APP_USER_*</code> environment variables in Railway.</p>
+
+    <h3>Check-in App (No Auth)</h3>
+    <p>The check-in app at <code>/attendance/</code> requires no authentication — it's designed to run on a shared iPad at meetings. The member data it receives is intentionally limited (no email, phone, address, or sensitive flags).</p>
+
+    <h3>Check-in Admin PIN</h3>
+    <p>The Admin section of the check-in app is protected by a 4-digit PIN. This controls access to board member list upload, attendance records, and data reset.</p>
+    <div class="warn">⚠ Admin PIN is sensitive — do not include in user-facing documentation.</div>
+  </section>
+
+  <!-- COMPONENTS -->
+  <section id="components">
+    <h2>9. Application Components</h2>
+
+    <div class="card">
+      <h3>serve.py — Python HTTP Server</h3>
+      <p>Single-file Python server. No external dependencies beyond the standard library. Handles: static file serving, Neon API proxying, member caching, Basic Auth, and Host-header-based routing.</p>
+    </div>
+
+    <div class="card">
+      <h3>lions-dashboard.html — Member Dashboard</h3>
+      <p>Single HTML file. All JS inline. Connects to <code>/members</code> for data and <code>/v2/*</code> for editing. Features: member table with filtering/sorting/pagination, member detail modal, custom flag editing (hardship, cash/check, exit status), CSV export, billing statement generation (Print Bill / Print All Bills).</p>
+    </div>
+
+    <div class="card">
+      <h3>attendance/ — Check-in App (React/Vite)</h3>
+      <p>React app built with Vite. Source in <code>attendance/src/App.jsx</code>. Built output in <code>attendance/dist/</code> (committed to repo so Railway can serve it without a build step). Features: board and general meeting check-in with on-screen keyboard, admin panel, member drawing (random 10%).</p>
+      <p>To rebuild after changes: <code>cd attendance && npm run build</code>, then commit the <code>dist/</code> folder.</p>
+    </div>
+
+    <div class="card">
+      <h3>attendance/LionsAttendance.jsx — Original Source</h3>
+      <p>The original standalone attendance app built by John (Lions member). Kept in <code>lionsclub/attendance/</code> as reference. The integrated version lives in <code>dashboard/attendance/src/App.jsx</code>.</p>
+    </div>
+  </section>
+
+  <!-- DUES -->
+  <section id="dues">
+    <h2>10. Dues & Billing</h2>
+    <table>
+      <thead><tr><th>Membership Type</th><th>Rate (per 6 months)</th></tr></thead>
+      <tbody>
+        <tr><td>Standard Member</td><td>$151.00</td></tr>
+        <tr><td>Member at Large</td><td>$55.00</td></tr>
+        <tr><td>Standard Member - No Meals</td><td>$55.00</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Arrears Calculation</h3>
+    <p>For expired members, arrears are calculated as one cycle per 6-month block elapsed since expiry, plus one current cycle to reinstate. Each cycle is billed at the member's rate.</p>
+
+    <h3>Billing Statements</h3>
+    <p>Printable PDF billing statements can be generated from the dashboard:</p>
+    <ul>
+      <li><strong>Print Bills</strong> button — generates statements for all members where status = Expired AND Cash/Check flag = true</li>
+      <li><strong>Print Bill</strong> in member modal — generates a statement for a single member</li>
+    </ul>
+    <p>Statements use a #8 double-window envelope layout. Return address (top window) and recipient address (bottom window) are positioned for standard fold-and-insert mailing.</p>
+
+    <h3>Treasurer</h3>
+    <table>
+      <tbody>
+        <tr><td style="width:120px;color:var(--gray);">Name</td><td>Joe Witt</td></tr>
+        <tr><td style="color:var(--gray);">Address</td><td>14160 Autumn Trail, Shakopee, MN 55379</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- REPO -->
+  <section id="repo">
+    <h2>11. GitHub Repository</h2>
+    <table>
+      <tbody>
+        <tr><td style="width:160px;color:var(--gray);">Repository</td><td><a href="https://github.com/joshhansen34/lions-dashboard">github.com/joshhansen34/lions-dashboard</a></td></tr>
+        <tr><td style="color:var(--gray);">Branch</td><td><code>main</code> (auto-deploys to Railway)</td></tr>
+        <tr><td style="color:var(--gray);">Local path</td><td><code>~/Documents/LionsClub/dashboard/</code></td></tr>
+      </tbody>
+    </table>
+    <h3>Key Files</h3>
+    <table>
+      <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>serve.py</code></td><td>Python HTTP server — main backend</td></tr>
+        <tr><td><code>lions-dashboard.html</code></td><td>Member dashboard UI</td></tr>
+        <tr><td><code>attendance/src/App.jsx</code></td><td>Check-in app source</td></tr>
+        <tr><td><code>attendance/dist/</code></td><td>Built check-in app (served by Railway)</td></tr>
+        <tr><td><code>config.py</code></td><td>Local dev credentials (gitignored)</td></tr>
+        <tr><td><code>config.py.example</code></td><td>Template for config.py</td></tr>
+        <tr><td><code>requirements.txt</code></td><td>Python deps (empty — stdlib only)</td></tr>
+        <tr><td><code>Procfile</code></td><td>Railway start command</td></tr>
+        <tr><td><code>railway.json</code></td><td>Railway build/deploy config</td></tr>
+        <tr><td><code>members_cache.json</code></td><td>Disk cache (gitignored, generated at runtime)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Deploying Changes</h3>
+    <pre><code># Make changes locally, then:
+git add &lt;files&gt;
+git commit -m "description of change"
+git push origin main
+# Railway picks up the push and redeploys automatically (~1-2 min)</code></pre>
+
+    <h3>Rebuilding the Check-in App</h3>
+    <pre><code>cd ~/Documents/LionsClub/dashboard/attendance
+npm install --cache /tmp/npm-cache    # first time only, or if node_modules missing
+npm run build                          # outputs to attendance/dist/
+git add attendance/dist/
+git commit -m "Rebuild attendance app"
+git push origin main</code></pre>
+  </section>
+
+</div>
+</body>
+</html>

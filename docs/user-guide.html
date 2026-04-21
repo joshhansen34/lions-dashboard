@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Guide — Shakopee Lions Club Apps</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: #f4f6f9;
+    color: #222;
+    line-height: 1.6;
+    padding: 0 0 60px;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    background: #1a3a6b;
+    color: #fff;
+    padding: 18px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topbar .lion { font-size: 2rem; }
+  .topbar h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.3px; }
+  .topbar p { font-size: 0.9rem; opacity: 0.8; margin-top: 2px; }
+
+  /* ── Nav tabs ── */
+  .tabs {
+    background: #fff;
+    border-bottom: 3px solid #1a3a6b;
+    padding: 0 40px;
+    display: flex;
+    gap: 4px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .tab {
+    padding: 14px 22px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #555;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -3px;
+    transition: color 0.15s, border-color 0.15s;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .tab:hover { color: #1a3a6b; }
+  .tab.active { color: #1a3a6b; border-bottom-color: #1a3a6b; }
+
+  /* ── Content ── */
+  .content {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 24px;
+  }
+
+  section {
+    margin-bottom: 48px;
+    scroll-margin-top: 70px;
+  }
+
+  h2 {
+    font-size: 1.6rem;
+    color: #1a3a6b;
+    border-bottom: 2px solid #d0d9e8;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    color: #1a3a6b;
+    margin: 24px 0 10px;
+  }
+
+  p { margin-bottom: 12px; }
+
+  ul, ol {
+    margin: 8px 0 16px 24px;
+  }
+  li { margin-bottom: 6px; }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-left: 4px solid #1a3a6b;
+    background: #eef2f9;
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+    font-size: 0.95rem;
+  }
+  .callout.tip { border-color: #2e7d32; background: #e8f5e9; }
+  .callout.warn { border-color: #c47d00; background: #fff8e1; }
+  .callout strong { display: block; margin-bottom: 4px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #555; }
+
+  /* ── Step cards ── */
+  .steps { counter-reset: step; margin: 16px 0; }
+  .step {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    align-items: flex-start;
+  }
+  .step-num {
+    counter-increment: step;
+    content: counter(step);
+    min-width: 32px;
+    height: 32px;
+    background: #1a3a6b;
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .step-body { flex: 1; }
+  .step-body strong { display: block; margin-bottom: 3px; }
+
+  /* ── Screenshot placeholders / screenshots ── */
+  .screen-label {
+    display: inline-block;
+    background: #dde3ef;
+    color: #1a3a6b;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+
+  /* ── URLs ── */
+  .url-pill {
+    display: inline-block;
+    background: #1a3a6b;
+    color: #fff;
+    font-family: monospace;
+    font-size: 0.9rem;
+    padding: 4px 12px;
+    border-radius: 4px;
+    margin: 4px 0;
+  }
+
+  /* ── Feature grid ── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .feature-card {
+    background: #fff;
+    border: 1px solid #d0d9e8;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .feature-card .icon { font-size: 1.8rem; margin-bottom: 8px; }
+  .feature-card h4 { font-size: 1rem; color: #1a3a6b; margin-bottom: 6px; }
+  .feature-card p { font-size: 0.9rem; color: #444; margin: 0; }
+
+  /* ── FAQ ── */
+  details {
+    background: #fff;
+    border: 1px solid #d0d9e8;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  summary {
+    padding: 14px 16px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  summary::after {
+    content: '▼';
+    font-size: 0.7rem;
+    color: #888;
+    transition: transform 0.2s;
+  }
+  details[open] summary::after { transform: rotate(180deg); }
+  details[open] summary { border-bottom: 1px solid #d0d9e8; }
+  .faq-body { padding: 14px 16px; font-size: 0.95rem; color: #333; }
+  .faq-body p { margin-bottom: 8px; }
+  .faq-body p:last-child { margin-bottom: 0; }
+
+  /* ── Table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin: 16px 0;
+  }
+  th {
+    background: #1a3a6b;
+    color: #fff;
+    padding: 9px 12px;
+    text-align: left;
+    font-weight: 600;
+  }
+  td { padding: 9px 12px; border-bottom: 1px solid #e0e6ee; }
+  tr:nth-child(even) td { background: #f7f9fc; }
+
+  /* ── Section panels ── */
+  .panel {
+    background: #fff;
+    border: 1px solid #d0d9e8;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 640px) {
+    .topbar { padding: 14px 16px; }
+    .tabs { padding: 0 8px; overflow-x: auto; }
+    .content { padding: 0 12px; }
+    h2 { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="lion">🦁</div>
+  <div>
+    <h1>Shakopee Lions Club — App User Guide</h1>
+    <p>How to use the Member Dashboard and Check-In App</p>
+  </div>
+</div>
+
+<div class="tabs">
+  <a class="tab active" href="#overview">Overview</a>
+  <a class="tab" href="#dashboard">Member Dashboard</a>
+  <a class="tab" href="#checkin">Check-In App</a>
+  <a class="tab" href="#faq">FAQ</a>
+</div>
+
+<div class="content">
+
+  <!-- ─────────── OVERVIEW ─────────── -->
+  <section id="overview">
+    <h2>Overview</h2>
+    <p>The Shakopee Lions Club has two web-based tools that work together to help manage membership and meeting attendance. Both run in any web browser — no software to install.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">📋</div>
+        <h4>Member Dashboard</h4>
+        <p>View and manage the full membership roster, track dues status, and print billing statements. Designed for officers and the treasurer.</p>
+        <p style="margin-top:8px"><span class="url-pill">dashboard.shakopeelions.com</span></p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">✅</div>
+        <h4>Check-In App</h4>
+        <p>Track attendance at board and general meetings. Runs on an iPad at the door — members tap their name to check in.</p>
+        <p style="margin-top:8px"><span class="url-pill">checkin.shakopeelions.com</span></p>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <strong>Tip</strong>
+      Both apps are live on the internet — you can reach them from any phone, tablet, or computer connected to the internet. There is nothing to download or install.
+    </div>
+  </section>
+
+  <!-- ─────────── DASHBOARD ─────────── -->
+  <section id="dashboard">
+    <h2>Member Dashboard</h2>
+    <p>The dashboard is the main tool for club officers to view the full membership list, check dues status, update member flags, and generate billing statements for members who owe dues.</p>
+
+    <h3>Logging In</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Open your browser</strong> and go to <span class="url-pill">dashboard.shakopeelions.com</span></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Enter your credentials</strong> when the login prompt appears. Contact the club secretary or Josh Hansen for the username and password.</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Wait for member data to load.</strong> The first load after a server restart may take 2–3 minutes while the system pulls fresh data from Neon CRM. Subsequent visits load instantly from a cache.</div></div>
+    </div>
+
+    <div class="callout warn">
+      <strong>Note</strong>
+      The dashboard username and password protect member data. Do not share them outside of authorized club officers.
+    </div>
+
+    <h3>Reading the Member List</h3>
+    <p>Each row in the table represents one member. The columns show:</p>
+    <table>
+      <thead><tr><th>Column</th><th>What It Means</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Name</strong></td><td>Member's first and last name</td></tr>
+        <tr><td><strong>Email / Phone</strong></td><td>Contact info pulled from Neon CRM</td></tr>
+        <tr><td><strong>Membership Type</strong></td><td>Standard, Board, Honorary, Life, etc.</td></tr>
+        <tr><td><strong>Last Paid Through</strong></td><td>The last billing period covered by their most recent payment. If this date is in the past, dues are overdue.</td></tr>
+        <tr><td><strong>Cash/Check</strong></td><td>Checked means this member pays by cash or check (not through the online portal). These members receive mailed billing statements.</td></tr>
+        <tr><td><strong>Hardship</strong></td><td>Indicates a member on reduced or waived dues. Only visible on the dashboard — not shown at check-in.</td></tr>
+        <tr><td><strong>Exit Status</strong></td><td>Member has left the club. These members are hidden at check-in.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Filtering and Searching</h3>
+    <p>Use the filter bar at the top of the member list to narrow down what you see:</p>
+    <ul>
+      <li><strong>Search box</strong> — type any part of a name to filter the list instantly</li>
+      <li><strong>Status filter</strong> — show all members, or only active / overdue / exited</li>
+      <li><strong>Type filter</strong> — filter by membership type (Standard, Board, etc.)</li>
+    </ul>
+
+    <h3>Editing a Member's Flags</h3>
+    <p>You can update the Cash/Check, Hardship, and Exit Status flags directly from the dashboard. These changes are saved back to Neon CRM.</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body">Click the member's row to open their detail panel.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body">Toggle the checkboxes for Cash/Check, Hardship, or Exit Status as needed.</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-body">Click <strong>Save</strong>. The change is sent to Neon CRM immediately.</div></div>
+    </div>
+
+    <h3>Printing Billing Statements</h3>
+    <p>The dashboard can generate ready-to-mail billing statements for every Cash/Check member with overdue dues. The statements are formatted to fit in a <strong>#8 double-window envelope</strong> — the member's address shows through the window and the return address shows through the top window.</p>
+
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Click "🖨 Print Bills"</strong> in the filter bar. This gathers all members who are: Cash/Check payers, dues overdue, and not exited.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Your browser's print dialog will open.</strong> Select your printer and choose <strong>Letter</strong> paper size.</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Print.</strong> Each page is one member's statement. Fold each page into thirds (top third faces out), insert into a #8 double-window envelope, and the addresses will show through the windows.</div></div>
+    </div>
+
+    <div class="callout tip">
+      <strong>Tip — How to fold for a window envelope</strong>
+      Lay the statement face-up. Fold the bottom third up, then fold the top third down over it. The member address should now be visible through the lower window of the envelope, and the return address through the upper window.
+    </div>
+
+    <h3>Printing a Single Member's Statement</h3>
+    <p>To print just one statement, open a member's detail panel and click <strong>Print Statement</strong>. This opens the same print layout for that member only.</p>
+
+    <h3>Data Refresh</h3>
+    <p>Member data is loaded from Neon CRM and cached on the server for up to 12 hours. If you need a fresh pull (for example, after updating records in Neon CRM), click the <strong>Refresh Data</strong> button. This triggers a full reload from Neon CRM and takes 2–3 minutes.</p>
+  </section>
+
+  <!-- ─────────── CHECK-IN ─────────── -->
+  <section id="checkin">
+    <h2>Check-In App</h2>
+    <p>The check-in app is designed to run on the iPad at the entrance to board and general meetings. Members tap their name to mark themselves present. No login is needed to check in.</p>
+
+    <h3>Where to Find It</h3>
+    <p>Open Safari (or any browser) on the iPad and go to:</p>
+    <p><span class="url-pill">checkin.shakopeelions.com</span></p>
+    <p>Bookmark this address on the iPad's home screen so you can tap one icon to open it at each meeting.</p>
+
+    <div class="callout tip">
+      <strong>Add to iPad Home Screen</strong>
+      In Safari, tap the Share button (the box with an arrow) → <em>Add to Home Screen</em>. Give it a name like "Lions Check-In" and tap Add. It will appear as an icon on the home screen just like an app.
+    </div>
+
+    <h3>Choosing a Meeting Type</h3>
+    <p>When you open the app, you'll see two buttons:</p>
+    <ul>
+      <li><strong>General Meeting</strong> — for regular monthly meetings open to all members</li>
+      <li><strong>Board Meeting</strong> — for monthly board meetings</li>
+    </ul>
+    <p>Tap the appropriate button before the meeting starts.</p>
+
+    <h3>Checking In Members</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body">A scrollable list of member names appears on screen.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body">As each member arrives, have them find their name (or you can find it for them) and <strong>tap it</strong>.</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-body">Their card turns green and shows a checkmark — they are checked in.</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-body">Tap again to undo a check-in if you made a mistake.</div></div>
+    </div>
+
+    <div class="callout">
+      <strong>What members see</strong>
+      Each member card shows their name and — if applicable — a <strong>Cash/Check</strong> badge so you know they are a cash/check payer. It does not show dues amounts or any sensitive information.
+    </div>
+
+    <h3>Viewing the Attendance Summary</h3>
+    <p>At any point during or after the meeting, tap <strong>View Attendance</strong> (or the summary icon) to see a count of who has checked in and a full list of names.</p>
+
+    <h3>Exporting Attendance Records</h3>
+    <p>After the meeting, you can export the attendance list:</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body">Tap <strong>Admin</strong> at the bottom of the screen.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body">Tap <strong>Export Attendance</strong>. This downloads a CSV file you can open in Excel or email to the secretary.</div></div>
+    </div>
+
+    <h3>Board Member List (Admin)</h3>
+    <p>The Board meeting screen shows only board members. The board member list is managed separately and can be updated through the Admin screen:</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body">Tap <strong>Admin</strong> at the bottom.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body">Under <strong>Board Members</strong>, tap <strong>Import</strong> to upload an updated CSV of board members.</div></div>
+    </div>
+    <div class="callout tip">
+      <strong>General member list</strong>
+      The general member list is loaded automatically from the club's member database — you do not need to import or update it manually. It stays current as long as the server has been running for at least 12 hours since the last Neon CRM sync.
+    </div>
+
+    <h3>If the App Is Slow or Offline</h3>
+    <p>The app stores a copy of the member list on the iPad. If there is no internet connection at the meeting venue, the app will use the saved copy and still work for check-in. The attendance export can be done once you are back online.</p>
+
+    <div class="callout warn">
+      <strong>First use of the day</strong>
+      When you first open the app, it may show "Loading member data from server…" for a few seconds. This is normal — it is pulling the latest list. If it takes more than 30 seconds, the server may be doing a full sync from Neon CRM, which takes 2–3 minutes. The app will retry automatically.
+    </div>
+  </section>
+
+  <!-- ─────────── FAQ ─────────── -->
+  <section id="faq">
+    <h2>Frequently Asked Questions</h2>
+
+    <details>
+      <summary>Who do I contact if I can't log in to the dashboard?</summary>
+      <div class="faq-body">
+        <p>Contact Josh Hansen (the dashboard administrator) or the club secretary. The dashboard uses a shared username and password — they can provide or reset the credentials.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>The check-in app says "Could not load members." What do I do?</summary>
+      <div class="faq-body">
+        <p>First, check that the iPad has an internet connection (look for the Wi-Fi or cellular signal in the top-right corner of the screen).</p>
+        <p>If connected, try closing the browser tab and reopening it. The server may have just restarted and needs 2–3 minutes to load member data from the database.</p>
+        <p>If the problem continues, the app may use a cached list from the last time it successfully loaded. Check-in can still proceed using that saved list.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>A member's dues status looks wrong on the dashboard. How do I fix it?</summary>
+      <div class="faq-body">
+        <p>Dues status is read directly from Neon CRM. To correct it, update the member's record in Neon CRM. Once updated, click <strong>Refresh Data</strong> on the dashboard — this will pull the latest data from Neon CRM (takes 2–3 minutes).</p>
+        <p>If the member has paid and the payment was recorded in Neon CRM but the dashboard still shows them as overdue, the cache may need to refresh. It refreshes automatically every 12 hours, or you can force it with the Refresh Data button.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Can I use the dashboard on my phone?</summary>
+      <div class="faq-body">
+        <p>Yes. The dashboard works in any modern web browser including Safari and Chrome on a phone. The layout is designed for wider screens (laptop/desktop), so some columns may be easier to read if you rotate the phone to landscape orientation.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>How do I pay my dues online?</summary>
+      <div class="faq-body">
+        <p>Go to <strong>www.shakopeelions.com</strong>, click the <strong>Members</strong> tab, then <strong>Existing Members</strong>. You will be taken to your personal member portal where you can make a one-time or recurring payment.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>I received a billing statement in the mail. What do my options are for paying?</summary>
+      <div class="faq-body">
+        <p><strong>By check:</strong> Make the check payable to <em>Shakopee Lions Club</em> and mail it to:<br>
+        <span style="margin-left:16px">Lions Treasurer: Joe Witt</span><br>
+        <span style="margin-left:16px">14160 Autumn Trail, Shakopee, MN 55379</span></p>
+        <p style="margin-top:8px"><strong>Online:</strong> Visit <strong>www.shakopeelions.com</strong> → Members → Existing Members → your personal portal.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>The billing statements are printing cut off / on two pages. How do I fix that?</summary>
+      <div class="faq-body">
+        <p>In the browser's print dialog, make sure <strong>Paper Size</strong> is set to <strong>Letter (8.5 × 11 in)</strong> and <strong>Scale</strong> is set to <strong>100%</strong> (not "Fit to page"). Scaling down too far makes the address positioning wrong for window envelopes.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Who built these apps?</summary>
+      <div class="faq-body">
+        <p>The Member Dashboard was built by Josh Hansen. The Check-In App was originally built by John (a Shakopee Lions member) and later integrated into the shared hosting by Josh Hansen so both apps run from the same server.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>What happens to the data? Is it secure?</summary>
+      <div class="faq-body">
+        <p>All member data comes from Neon CRM, which is the club's official membership database. The dashboard is password-protected so only authorized officers can view member details. The check-in app shows only names (no personal contact information or financial details). No member data is stored anywhere outside of Neon CRM and the club's own server.</p>
+      </div>
+    </details>
+
+  </section>
+
+</div>
+
+<script>
+  // Highlight active tab based on scroll position
+  const sections = document.querySelectorAll('section[id]');
+  const tabs = document.querySelectorAll('.tab');
+
+  function setActive(id) {
+    tabs.forEach(t => {
+      t.classList.toggle('active', t.getAttribute('href') === '#' + id);
+    });
+  }
+
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) setActive(e.target.id); });
+  }, { rootMargin: '-60px 0px -70% 0px' });
+
+  sections.forEach(s => obs.observe(s));
+
+  // Smooth-scroll on tab click
+  tabs.forEach(t => {
+    t.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(t.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+</script>
+</body>
+</html>
