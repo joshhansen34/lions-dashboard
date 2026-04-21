@@ -684,7 +684,7 @@ function billStyles() {
     .pbox p+p { margin-top:6px; }
     .pbox strong { color:#111; }
     .foot { margin-top:auto; border-top:1px solid #ccc; padding-top:8px; font-size:8.5pt; color:#555; line-height:1.4; text-align:center; }
-    @media print { .page { page-break-after: always; } }
+    @media print { .page + .page { page-break-before: always; } }
   `;
 }
 
