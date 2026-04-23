@@ -148,17 +148,18 @@
 
 <div id="setup-screen">
   <div class="setup-card">
-    <h2>Connect to Neon CRM</h2>
-    <p>Enter your Neon One organization ID and API key to get started. Credentials are stored locally in your browser only.</p>
+    <h2>Sign In</h2>
+    <p>Enter your dashboard credentials to access the member directory.</p>
     <div class="field-group">
-      <label>Organization ID</label>
-      <input type="text" id="org-id-input" placeholder="e.g. shakopeelionsclub" />
+      <label>Username</label>
+      <input type="text" id="org-id-input" placeholder="Username" autocomplete="username" />
     </div>
     <div class="field-group">
-      <label>API Key</label>
-      <input type="password" id="api-key-input" placeholder="Your Neon API key" />
+      <label>Password</label>
+      <input type="password" id="api-key-input" placeholder="Password" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter') connect()" />
     </div>
-    <button class="connect-btn" onclick="connect()">Connect</button>
+    <button class="connect-btn" onclick="connect()">Sign In</button>
     <div class="error-msg" id="connect-error"></div>
   </div>
 </div>
@@ -242,6 +243,8 @@
 const CACHE_KEY = 'lc_members_v2';
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const BATCH = 10;
+const AUTH_SK = 'lc_auth_v1';
+let AUTH_HEADER = '';
 
 const DUES_RATES = {
   'Standard Member': 151,
@@ -274,15 +277,45 @@ let customFieldIds = {
   sponsor:    '86',
 };
 
-window.onload = () => { showDashboard(); loadMembers(); };
+window.onload = () => {
+  const stored = sessionStorage.getItem(AUTH_SK);
+  if (stored) { AUTH_HEADER = 'Basic ' + stored; showDashboard(); loadMembers(); }
+  else { document.getElementById('setup-screen').style.display = 'flex'; document.getElementById('dashboard').style.display = 'none'; }
+};
+
+async function connect() {
+  const user = document.getElementById('org-id-input').value.trim();
+  const pass = document.getElementById('api-key-input').value;
+  if (!user || !pass) return;
+  const encoded = btoa(user + ':' + pass);
+  const err = document.getElementById('connect-error');
+  err.style.display = 'none';
+  try {
+    const res = await fetch('/members', { headers: { 'Authorization': 'Basic ' + encoded } });
+    if (res.status === 401) { err.textContent = 'Invalid username or password.'; err.style.display = 'block'; return; }
+    if (!res.ok) throw new Error('Server error ' + res.status);
+    AUTH_HEADER = 'Basic ' + encoded;
+    sessionStorage.setItem(AUTH_SK, encoded);
+    const data = await res.json();
+    showDashboard();
+    if (data.status === 'loading') { pollForMembers(); } else { allMembers = data.members || []; updateStats(); applyFilters(); showToast(`${allMembers.length} members loaded`, false, 4000); document.getElementById('sync-btn').disabled = false; }
+  } catch(e) { err.textContent = 'Connection error: ' + e.message; err.style.display = 'block'; }
+}
+
+function signOut() { sessionStorage.removeItem(AUTH_SK); AUTH_HEADER = ''; location.reload(); }
 
 function showDashboard() { document.getElementById('setup-screen').style.display = 'none'; document.getElementById('dashboard').style.display = 'block'; }
 
 async function neonGet(path) {
-  return fetch('/v2' + path, { headers: { 'Content-Type': 'application/json' } });
+  return fetch('/v2' + path, { headers: { 'Content-Type': 'application/json', 'Authorization': AUTH_HEADER } });
 }
 async function neonPatch(path, body) {
-  return fetch('/v2' + path, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  return fetch('/v2' + path, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': AUTH_HEADER }, body: JSON.stringify(body) });
+}
+
+function authFetch(url, opts = {}) {
+  opts.headers = Object.assign({ 'Authorization': AUTH_HEADER }, opts.headers || {});
+  return fetch(url, opts);
 }
 
 
@@ -361,7 +394,7 @@ async function loadMembers(manual = false) {
 
   if (manual) {
     setProgress('Requesting refresh...', 5);
-    try { await fetch('/members/refresh', { method: 'POST' }); } catch(e) { /* non-fatal */ }
+    try { await authFetch('/members/refresh', { method: 'POST' }); } catch(e) { /* non-fatal */ }
   }
 
   await pollForMembers();
@@ -374,7 +407,8 @@ async function pollForMembers() {
 
   async function check() {
     try {
-      const res = await fetch('/members');
+      const res = await authFetch('/members');
+      if (res.status === 401) { sessionStorage.removeItem(AUTH_SK); location.reload(); return; }
       if (!res.ok) throw new Error('Server error ' + res.status);
       const data = await res.json();
       if (data.status === 'loading') {
@@ -802,20 +836,18 @@ async function saveMember() {
   const exitDate  = document.getElementById('modal-exit-date').value;
 
   const accountCustomFields = [];
-  if (customFieldIds.hardship)   accountCustomFields.push({ id: customFieldIds.hardship,   optionValues: hardship ? ['Yes'] : [] });
-  if (customFieldIds.cash)       accountCustomFields.push({ id: customFieldIds.cash,        optionValues: cash ? ['Yes'] : [] });
-  if (customFieldIds.exitStatus) accountCustomFields.push({ id: customFieldIds.exitStatus,  value: exitStatus });
-  if (customFieldIds.exitDate)   accountCustomFields.push({ id: customFieldIds.exitDate,    value: exitDate });
+  if (customFieldIds.hardship)   accountCustomFields.push({ id: parseInt(customFieldIds.hardship),   value: hardship ? 'Yes' : '' });
+  if (customFieldIds.cash)       accountCustomFields.push({ id: parseInt(customFieldIds.cash),        value: cash ? 'Yes' : '' });
+  if (customFieldIds.exitStatus) accountCustomFields.push({ id: parseInt(customFieldIds.exitStatus),  value: exitStatus });
+  if (customFieldIds.exitDate)   accountCustomFields.push({ id: parseInt(customFieldIds.exitDate),    value: exitDate });
 
   try {
-    const res = await neonPatch(`/accounts/${editingMember.id}`, { accountCustomFields });
+    const res = await neonPatch(`/accounts/${editingMember.id}`, { individualAccount: { accountCustomFields } });
     if (!res.ok) throw new Error(await res.text());
     editingMember.hardship    = hardship;
     editingMember.cash        = cash;
     editingMember.exitStatus  = exitStatus;
     editingMember.exitDate    = exitDate;
-    // Update cache with new values
-    saveCache(allMembers, customFieldIds);
     updateStats(); renderTable(); closeModal();
     showToast('Member updated successfully');
   } catch(e) { console.error(e); showToast('Error: ' + e.message, true); }
