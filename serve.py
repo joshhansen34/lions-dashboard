@@ -70,6 +70,48 @@ MIME_TYPES = {
     '.ttf':   'font/ttf',
 }
 
+# ── Field Options Cache ────────────────────────────────────────────────────────
+# Maps field_id (str) -> {option_name (str) -> option_id (int)}
+# Populated at startup from GET /v2/customFields and augmented as members load.
+_field_options = {}
+_field_options_lock = threading.Lock()
+
+def fetch_field_options():
+    """Fetch custom field definitions from Neon to get option IDs."""
+    data = neon_get('/v2/customFields?category=Account&currentPage=0&pageSize=200')
+    fields = []
+    if isinstance(data, dict):
+        fields = data.get('customFields') or data.get('data') or []
+    elif isinstance(data, list):
+        fields = data
+    result = {}
+    for f in fields:
+        fid = str(f.get('id', ''))
+        opts = f.get('listOfValues') or f.get('optionValues') or []
+        if opts:
+            result[fid] = {str(o.get('name', '')): int(o['id']) for o in opts if o.get('id') is not None}
+    with _field_options_lock:
+        _field_options.update(result)
+    print(f"  [fields] Loaded options for {len(result)} fields: {list(result.keys())}")
+    return result
+
+def record_option_ids(cfs):
+    """Capture option IDs seen in a live account response."""
+    updates = {}
+    for cf in (cfs or []):
+        fid = str(cf.get('id', ''))
+        for opt in (cf.get('optionValues') or []):
+            if opt.get('id') is not None and opt.get('name'):
+                updates.setdefault(fid, {})[str(opt['name'])] = int(opt['id'])
+    if updates:
+        with _field_options_lock:
+            for fid, opts in updates.items():
+                _field_options.setdefault(fid, {}).update(opts)
+
+def get_field_options():
+    with _field_options_lock:
+        return dict(_field_options)
+
 # ── Member Cache ───────────────────────────────────────────────────────────────
 
 CACHE_TTL = 12 * 60 * 60  # 12 hours
@@ -162,6 +204,7 @@ def parse_custom_fields(cfs):
             opts = cf.get('optionValues') or []
             val = opts[0].get('name', '') if opts else ''
         result[key] = val or ''
+    record_option_ids(cfs)  # capture any option IDs we see
     return result
 
 
@@ -388,6 +431,12 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == '/members' or self.path.startswith('/members?'):
             self.handle_members_get()
             return
+        if self.path == '/field-options':
+            opts = get_field_options()
+            if not opts:
+                opts = fetch_field_options()
+            self.send_json(opts)
+            return
         if self.path.startswith('/v2/'):
             self.proxy_request("GET", None)
             return
@@ -511,7 +560,8 @@ if __name__ == "__main__":
     print(f"  Users: {', '.join(USERS.keys())}")
     print("  Press Ctrl+C to stop")
     print()
-    # Warm the cache on startup
+    # Warm the cache and fetch field option IDs on startup
+    threading.Thread(target=fetch_field_options, daemon=True).start()
     get_cache_state()
     try:
         HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

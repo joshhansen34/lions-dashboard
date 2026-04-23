@@ -260,6 +260,7 @@ const TREASURER = {
 
 let ORG_ID = '', API_KEY = '';
 let allMembers = [], filteredMembers = [];
+let fieldOptions = {};  // field_id (str) -> {option_name -> option_id}
 let currentFilter = 'all', currentSort = { key: 'name', dir: 1 };
 let currentPage = 1;
 const PAGE_SIZE = 50;
@@ -279,7 +280,7 @@ let customFieldIds = {
 
 window.onload = () => {
   const stored = sessionStorage.getItem(AUTH_SK);
-  if (stored) { AUTH_HEADER = 'Basic ' + stored; showDashboard(); loadMembers(); }
+  if (stored) { AUTH_HEADER = 'Basic ' + stored; authFetch('/field-options').then(r => r.json()).then(d => { fieldOptions = d; }).catch(() => {}); showDashboard(); loadMembers(); }
   else { document.getElementById('setup-screen').style.display = 'flex'; document.getElementById('dashboard').style.display = 'none'; }
 };
 
@@ -297,6 +298,8 @@ async function connect() {
     AUTH_HEADER = 'Basic ' + encoded;
     sessionStorage.setItem(AUTH_SK, encoded);
     const data = await res.json();
+    // Load field option IDs so saves can include them
+    authFetch('/field-options').then(r => r.json()).then(d => { fieldOptions = d; }).catch(() => {});
     showDashboard();
     if (data.status === 'loading') { pollForMembers(); } else { allMembers = data.members || []; updateStats(); applyFilters(); showToast(`${allMembers.length} members loaded`, false, 4000); document.getElementById('sync-btn').disabled = false; }
   } catch(e) { err.textContent = 'Connection error: ' + e.message; err.style.display = 'block'; }
@@ -835,11 +838,16 @@ async function saveMember() {
   const exitStatus = document.getElementById('modal-exit-status').value;
   const exitDate  = document.getElementById('modal-exit-date').value;
 
-  // Yes/No fields in Neon are option-type — must use optionValues, not value
-  const yesNo = (checked) => checked ? [{ name: 'Yes' }] : [];
+  // Build optionValues entry for a Yes/No field, including option ID if known
+  const yesNo = (fieldId, checked) => {
+    const opts = fieldOptions[String(fieldId)] || {};
+    if (!checked) return [];
+    const optId = opts['Yes'];
+    return optId ? [{ id: optId, name: 'Yes' }] : [{ name: 'Yes' }];
+  };
   const accountCustomFields = [];
-  if (customFieldIds.hardship)   accountCustomFields.push({ id: parseInt(customFieldIds.hardship),   optionValues: yesNo(hardship) });
-  if (customFieldIds.cash)       accountCustomFields.push({ id: parseInt(customFieldIds.cash),        optionValues: yesNo(cash) });
+  if (customFieldIds.hardship)   accountCustomFields.push({ id: parseInt(customFieldIds.hardship),   optionValues: yesNo(customFieldIds.hardship, hardship) });
+  if (customFieldIds.cash)       accountCustomFields.push({ id: parseInt(customFieldIds.cash),        optionValues: yesNo(customFieldIds.cash, cash) });
   if (customFieldIds.exitStatus) accountCustomFields.push({ id: parseInt(customFieldIds.exitStatus),  value: exitStatus });
   if (customFieldIds.exitDate)   accountCustomFields.push({ id: parseInt(customFieldIds.exitDate),    value: exitDate });
 
