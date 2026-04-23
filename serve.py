@@ -278,6 +278,7 @@ def build_raw_member(data):
         'partner':      cf.get('partner', ''),
         'lionsNumber':  cf.get('lionsNumber', ''),
         'sponsor':      cf.get('sponsor', ''),
+        'autoRenewal':  False,  # populated after membership fetch
         'loaded':       True,
         '_status':      mem_status,
         '_active':      mem_status == 'active',
@@ -336,6 +337,7 @@ def do_load_members():
                 batch[j]['membershipType']   = (target.get('membershipLevel') or {}).get('name', '') or ''
                 batch[j]['membershipExpiry'] = target.get('termEndDate', '') or ''
                 batch[j]['membershipStatus'] = 'current' if active else 'expired'
+                batch[j]['autoRenewal']      = bool((active or target).get('autoRenewal', False))
                 del batch[j]['_status']
                 del batch[j]['_active']
                 confirmed.append(batch[j])

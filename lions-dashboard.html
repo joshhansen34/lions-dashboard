@@ -41,7 +41,7 @@
 
   #dashboard { display: none; padding: 24px 32px; }
 
-  .stats-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--navy-border); border: 1px solid var(--navy-border); margin-bottom: 24px; }
+  .stats-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; background: var(--navy-border); border: 1px solid var(--navy-border); margin-bottom: 24px; }
   .stat { background: var(--navy-mid); padding: 16px 20px; text-align: center; }
   .stat-num { font-family: var(--display); font-size: 32px; line-height: 1; margin-bottom: 4px; }
   .stat-label { font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gray); }
@@ -79,6 +79,8 @@
   .badge-hardship { background: rgba(230,126,34,0.15); color: var(--amber); border: 1px solid rgba(230,126,34,0.3); }
   .badge-cash { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
   .badge-exited { background: rgba(138,155,176,0.15); color: var(--gray); border: 1px solid rgba(138,155,176,0.3); }
+  .badge-autorenew { background: rgba(39,174,96,0.12); color: var(--green); border: 1px solid rgba(39,174,96,0.25); }
+  .badge-noauto { background: rgba(230,126,34,0.12); color: var(--amber); border: 1px solid rgba(230,126,34,0.25); }
   .flags-cell { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
   .type-pill { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--gray); background: var(--navy-light); padding: 2px 7px; border-radius: 2px; }
 
@@ -171,6 +173,7 @@
     <div class="stat"><div class="stat-num red" id="stat-expired">—</div><div class="stat-label">Dues Expired</div></div>
     <div class="stat"><div class="stat-num amber" id="stat-hardship">—</div><div class="stat-label">Hardship Waiver</div></div>
     <div class="stat"><div class="stat-num gray" id="stat-exited">—</div><div class="stat-label">Deceased / Resigned</div></div>
+    <div class="stat"><div class="stat-num amber" id="stat-noauto">—</div><div class="stat-label">No Auto-Renew</div></div>
   </div>
 
   <div class="load-progress" id="load-progress">
@@ -189,6 +192,7 @@
     <button class="filter-btn" onclick="setFilter('hardship', this)">Hardship</button>
     <button class="filter-btn" onclick="setFilter('cash', this)">Cash/Check</button>
     <button class="filter-btn" onclick="setFilter('exited', this)">Exited</button>
+    <button class="filter-btn" onclick="setFilter('noauto', this)">No Auto-Renew</button>
     <button class="filter-btn" style="margin-left:auto;" onclick="printAllBills()">🖨 Print Bills</button>
     <button class="filter-btn" style="background:var(--blue);color:#fff;border-color:var(--blue);" onclick="exportCSV()">Export CSV</button>
   </div>
@@ -473,6 +477,7 @@ function updateStats() {
   document.getElementById('stat-expired').textContent = active.filter(m => m.membershipStatus === 'expired').length;
   document.getElementById('stat-hardship').textContent = active.filter(m => m.hardship).length;
   document.getElementById('stat-exited').textContent = allMembers.filter(m => m.exitStatus).length;
+  document.getElementById('stat-noauto').textContent = allMembers.filter(m => !m.exitStatus && !m.cash && !m.autoRenewal).length;
 }
 
 function setFilter(f, btn) {
@@ -492,6 +497,7 @@ function applyFilters() {
     if (currentFilter === 'hardship') return m.hardship;
     if (currentFilter === 'cash') return m.cash;
     if (currentFilter === 'exited') return !!m.exitStatus;
+    if (currentFilter === 'noauto') return !m.exitStatus && !m.cash && !m.autoRenewal;
     return true;
   });
   sortMembers(); renderTable();
@@ -568,6 +574,10 @@ function renderTable() {
     const flags = [];
     if (m.hardship) flags.push(`<span class="badge badge-hardship">Hardship</span>`);
     if (m.cash) flags.push(`<span class="badge badge-cash">Cash/Check</span>`);
+    if (!m.exitStatus && !m.cash) {
+      if (m.autoRenewal) flags.push(`<span class="badge badge-autorenew">↻ Auto-Renew</span>`);
+      else flags.push(`<span class="badge badge-noauto">Manual</span>`);
+    }
 
     let expiryCell;
     if (m.membershipStatus === 'expired' && !m.exitStatus && m.membershipExpiry) {
@@ -654,6 +664,7 @@ function renderModalBody(m) {
         <div class="info-item"><label>Membership Type</label><div class="value">${m.membershipType || '—'}</div></div>
         <div class="info-item"><label>Dues Status</label><div class="value">${statusBadge}</div></div>
         <div class="info-item"><label>Term Expires</label><div class="value" style="font-family:var(--mono);font-size:12px;">${m.membershipExpiry ? formatDate(m.membershipExpiry) : '—'}</div></div>
+        ${!m.cash ? `<div class="info-item"><label>Auto-Renewal</label><div class="value">${m.autoRenewal ? '<span class="badge badge-autorenew">↻ Enabled</span>' : '<span class="badge badge-noauto">Not enabled</span>'}</div></div>` : ''}
       </div>
     </div>
     <div class="modal-section">
