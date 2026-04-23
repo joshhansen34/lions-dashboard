@@ -482,6 +482,7 @@ function updateStats() {
 
 function setFilter(f, btn) {
   currentFilter = f; currentPage = 1;
+  document.getElementById('search-input').value = '';
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active'); applyFilters();
 }
