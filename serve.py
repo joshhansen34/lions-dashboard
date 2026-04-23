@@ -473,23 +473,6 @@ class Handler(BaseHTTPRequestHandler):
                 opts = fetch_field_options()
             self.send_json(opts)
             return
-        if self.path.startswith('/debug/account/'):
-            aid = self.path.split('/')[-1]
-            raw = {
-                'account':     neon_get(f'/v2/accounts/{aid}'),
-                'memberships': neon_get(f'/v2/accounts/{aid}/memberships'),
-            }
-            self.send_json(raw)
-            return
-        if self.path == '/debug/customfields':
-            raw = {}
-            for path in ['/v2/customFields', '/v2/customFields?currentPage=0&pageSize=200']:
-                raw[path] = neon_get(path)
-            for fid in ['138', '139', '140', '141']:
-                raw[f'/v2/customFields/{fid}'] = neon_get(f'/v2/customFields/{fid}')
-            raw['_parsed_options'] = get_field_options()
-            self.send_json(raw)
-            return
         if self.path.startswith('/v2/'):
             self.proxy_request("GET", None)
             return
