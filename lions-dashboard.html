@@ -229,7 +229,6 @@
       <div class="modal-loading"><div class="modal-spinner"></div>Loading...</div>
     </div>
     <div class="modal-footer" id="modal-footer" style="display:none;">
-      <a id="modal-neon-link" href="#" target="_blank" class="neon-link">Open in Neon ↗</a>
       <button class="btn-cancel" id="print-bill-btn" onclick="printBill(editingMember)" style="display:none;border-color:var(--gold-dim);color:var(--gold);">Print Bill</button>
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
       <button class="btn-save" id="save-btn" onclick="saveMember()">Save Changes</button>
@@ -615,7 +614,6 @@ async function openModal(id) {
   editingMember = m;
   document.getElementById('modal-name').textContent = [m.firstName, m.lastName].filter(Boolean).join(' ');
   document.getElementById('modal-meta').textContent = m.email || 'No email on file';
-  document.getElementById('modal-neon-link').href = `https://app.neoncrm.com/np/admin/account/account.do?accountId=${m.id}`;
   document.getElementById('member-modal').classList.add('open');
 
   if (!m.loaded) {
@@ -663,21 +661,14 @@ function renderModalBody(m) {
       <label class="checkbox-row"><input type="checkbox" id="modal-hardship" ${m.hardship ? 'checked' : ''}/><span>Hardship Waiver — dues not required</span></label>
       <label class="checkbox-row"><input type="checkbox" id="modal-cash" ${m.cash ? 'checked' : ''}/><span>Pays by Cash/Check — treasurer handles payment</span></label>
     </div>
+    ${m.exitStatus ? `
     <div class="modal-section">
       <div class="modal-section-title">Exit Information</div>
-      <div class="modal-field-group">
-        <label>Exit Status</label>
-        <select id="modal-exit-status">
-          <option value="" ${!m.exitStatus ? 'selected' : ''}>— Still with club —</option>
-          <option value="Deceased" ${m.exitStatus === 'Deceased' ? 'selected' : ''}>Deceased</option>
-          <option value="Resigned" ${m.exitStatus === 'Resigned' ? 'selected' : ''}>Resigned</option>
-        </select>
+      <div class="info-grid">
+        <div class="info-item"><label>Exit Status</label><div class="value">${m.exitStatus}</div></div>
+        <div class="info-item"><label>Exit Date</label><div class="value" style="font-family:var(--mono);font-size:12px;">${m.exitDate || '—'}</div></div>
       </div>
-      <div class="modal-field-group">
-        <label>Exit Date</label>
-        <input type="text" id="modal-exit-date" value="${m.exitDate || ''}" placeholder="MM/DD/YYYY"/>
-      </div>
-    </div>`;
+    </div>` : ''}`;
 }
 
 function billStyles() {
@@ -835,10 +826,7 @@ async function saveMember() {
 
   const hardship  = document.getElementById('modal-hardship').checked;
   const cash      = document.getElementById('modal-cash').checked;
-  const exitStatus = document.getElementById('modal-exit-status').value;
-  const exitDate  = document.getElementById('modal-exit-date').value;
 
-  // Build optionValues entry for a Yes/No field, including option ID if known
   const yesNo = (fieldId, checked) => {
     const opts = fieldOptions[String(fieldId)] || {};
     if (!checked) return [];
@@ -846,20 +834,16 @@ async function saveMember() {
     return optId ? [{ id: optId, name: 'Yes' }] : [{ name: 'Yes' }];
   };
   const accountCustomFields = [];
-  if (customFieldIds.hardship)   accountCustomFields.push({ id: parseInt(customFieldIds.hardship),   optionValues: yesNo(customFieldIds.hardship, hardship) });
-  if (customFieldIds.cash)       accountCustomFields.push({ id: parseInt(customFieldIds.cash),        optionValues: yesNo(customFieldIds.cash, cash) });
-  if (customFieldIds.exitStatus) accountCustomFields.push({ id: parseInt(customFieldIds.exitStatus),  value: exitStatus });
-  if (customFieldIds.exitDate)   accountCustomFields.push({ id: parseInt(customFieldIds.exitDate),    value: exitDate });
+  if (customFieldIds.hardship) accountCustomFields.push({ id: parseInt(customFieldIds.hardship), optionValues: yesNo(customFieldIds.hardship, hardship) });
+  if (customFieldIds.cash)     accountCustomFields.push({ id: parseInt(customFieldIds.cash),     optionValues: yesNo(customFieldIds.cash, cash) });
 
   try {
     const res = await neonPatch(`/accounts/${editingMember.id}`, { individualAccount: { accountCustomFields } });
     const body = await res.json().catch(() => null);
     const neonErrors = body?.errors || (Array.isArray(body) && body[0]?.code ? body : null);
     if (!res.ok || neonErrors) throw new Error(JSON.stringify(neonErrors || body));
-    editingMember.hardship    = hardship;
-    editingMember.cash        = cash;
-    editingMember.exitStatus  = exitStatus;
-    editingMember.exitDate    = exitDate;
+    editingMember.hardship = hardship;
+    editingMember.cash     = cash;
     updateStats(); renderTable(); closeModal();
     showToast('Member updated successfully');
   } catch(e) { console.error(e); showToast('Error: ' + e.message, true); }
