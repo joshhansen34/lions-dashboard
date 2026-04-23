@@ -76,23 +76,51 @@ MIME_TYPES = {
 _field_options = {}
 _field_options_lock = threading.Lock()
 
-def fetch_field_options():
-    """Fetch custom field definitions from Neon to get option IDs."""
-    data = neon_get('/v2/customFields?category=Account&currentPage=0&pageSize=200')
+def _parse_fields_response(data):
+    """Extract {field_id: {option_name: option_id}} from any Neon customFields response shape."""
     fields = []
     if isinstance(data, dict):
-        fields = data.get('customFields') or data.get('data') or []
+        for key in ('customFields', 'data', 'results', 'items'):
+            if key in data:
+                fields = data[key]; break
+        if not fields:
+            # Single field response
+            if data.get('id') and (data.get('listOfValues') or data.get('optionValues')):
+                fields = [data]
     elif isinstance(data, list):
         fields = data
     result = {}
     for f in fields:
         fid = str(f.get('id', ''))
+        if not fid:
+            continue
         opts = f.get('listOfValues') or f.get('optionValues') or []
         if opts:
             result[fid] = {str(o.get('name', '')): int(o['id']) for o in opts if o.get('id') is not None}
+    return result
+
+def fetch_field_options():
+    """Fetch custom field definitions from Neon to get option IDs."""
+    result = {}
+    # Try list endpoint with various param combinations
+    for path in ['/v2/customFields', '/v2/customFields?currentPage=0&pageSize=200',
+                 '/v2/customFields?category=Account&currentPage=0&pageSize=200']:
+        data = neon_get(path)
+        print(f"  [fields] GET {path} -> {type(data).__name__}: {str(data)[:300]}")
+        if data:
+            result.update(_parse_fields_response(data))
+            if result:
+                break
+    # Also try fetching our specific fields individually as fallback
+    for fid in ['138', '139', '140', '141']:
+        if fid not in result:
+            data = neon_get(f'/v2/customFields/{fid}')
+            print(f"  [fields] GET /v2/customFields/{fid} -> {str(data)[:300]}")
+            if data:
+                result.update(_parse_fields_response(data))
     with _field_options_lock:
         _field_options.update(result)
-    print(f"  [fields] Loaded options for {len(result)} fields: {list(result.keys())}")
+    print(f"  [fields] Final options: {result}")
     return result
 
 def record_option_ids(cfs):
@@ -436,6 +464,15 @@ class Handler(BaseHTTPRequestHandler):
             if not opts:
                 opts = fetch_field_options()
             self.send_json(opts)
+            return
+        if self.path == '/debug/customfields':
+            raw = {}
+            for path in ['/v2/customFields', '/v2/customFields?currentPage=0&pageSize=200']:
+                raw[path] = neon_get(path)
+            for fid in ['138', '139', '140', '141']:
+                raw[f'/v2/customFields/{fid}'] = neon_get(f'/v2/customFields/{fid}')
+            raw['_parsed_options'] = get_field_options()
+            self.send_json(raw)
             return
         if self.path.startswith('/v2/'):
             self.proxy_request("GET", None)
