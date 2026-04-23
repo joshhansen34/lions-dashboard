@@ -389,6 +389,12 @@ def invalidate_cache():
         _cache['loaded_at'] = None
         _cache['error']     = None
         _cache['loading']   = False
+    try:
+        if os.path.exists(CACHE_FILE):
+            os.remove(CACHE_FILE)
+            print("  [cache] Disk cache cleared")
+    except Exception as e:
+        print(f"  [cache] Failed to clear disk cache: {e}")
 
 
 # ── HTTP Handler ───────────────────────────────────────────────────────────────
