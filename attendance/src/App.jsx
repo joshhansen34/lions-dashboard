@@ -271,13 +271,19 @@ function DrawingScreen({ onBack }) {
     ).map(r => r.fullName);
   }, []);
 
-  const drawCount = Math.max(1, Math.round(pool.length * 0.1));
+  const [phase, setPhase]           = useState("ready");   // ready | spinning | reveal | done
+  const [winners, setWinners]       = useState([]);
+  const [revealed, setRevealed]     = useState([]);
+  const [spinning, setSpinning]     = useState("");
+  const [spinIdx, setSpinIdx]       = useState(0);
+  const [previousWinners, setPreviousWinners] = useState(new Set()); // can only win once
 
-  const [phase, setPhase]       = useState("ready");   // ready | spinning | reveal | done
-  const [winners, setWinners]   = useState([]);
-  const [revealed, setRevealed] = useState([]);
-  const [spinning, setSpinning] = useState("");        // name flickering during slot spin
-  const [spinIdx, setSpinIdx]   = useState(0);         // which winner we're revealing
+  // Eligible pool excludes anyone who's already won this session
+  const eligiblePool = useMemo(() =>
+    pool.filter(name => !previousWinners.has(name)),
+  [pool, previousWinners]);
+
+  const drawCount = Math.max(1, Math.round(eligiblePool.length * 0.1));
 
   // Fisher-Yates shuffle
   const shuffle = (arr) => {
@@ -285,7 +291,8 @@ function DrawingScreen({ onBack }) {
   };
 
   const startDraw = () => {
-    const drawn = shuffle(pool).slice(0, drawCount);
+    if (eligiblePool.length === 0) return;
+    const drawn = shuffle(eligiblePool).slice(0, drawCount);
     setWinners(drawn);
     setRevealed([]);
     setSpinIdx(0);
@@ -298,15 +305,17 @@ function DrawingScreen({ onBack }) {
     if (spinIdx >= winners.length) { setPhase("done"); setSpinning(""); return; }
 
     let ticks = 0;
-    const totalTicks = 18 + spinIdx * 4; // gets slightly longer for each draw
+    const totalTicks = 18 + spinIdx * 4;
     const iv = setInterval(() => {
-      setSpinning(pool[Math.floor(Math.random() * pool.length)]);
+      setSpinning(eligiblePool[Math.floor(Math.random() * eligiblePool.length)]);
       ticks++;
       if (ticks >= totalTicks) {
         clearInterval(iv);
         const winner = winners[spinIdx];
         setSpinning("");
         setRevealed(prev => [...prev, winner]);
+        // Mark this winner so they can't win again
+        setPreviousWinners(prev => new Set([...prev, winner]));
         setTimeout(() => setSpinIdx(i => i + 1), 900);
       }
     }, 80);
@@ -355,15 +364,25 @@ function DrawingScreen({ onBack }) {
             <div style={{ color:C.gray, fontSize:13, fontFamily:FB }}>Present today</div>
             <div style={{ fontFamily:FC, fontSize:36, fontWeight:800, color:C.white }}>{pool.length}</div>
           </div>
-          <div style={{ flex:1, background:C.card, border:`2px solid ${C.gold}`, borderRadius:C.radius, padding:"14px 18px", textAlign:"center" }}>
-            <div style={{ color:C.gray, fontSize:13, fontFamily:FB }}>Winners drawn</div>
-            <div style={{ fontFamily:FC, fontSize:36, fontWeight:800, color:C.gold }}>{drawCount}</div>
+          <div style={{ flex:1, background:C.card, border:`2px solid ${previousWinners.size > 0 ? C.warn : C.border}`, borderRadius:C.radius, padding:"14px 18px", textAlign:"center" }}>
+            <div style={{ color:C.gray, fontSize:13, fontFamily:FB }}>Eligible</div>
+            <div style={{ fontFamily:FC, fontSize:36, fontWeight:800, color:previousWinners.size > 0 ? C.warn : C.white }}>{eligiblePool.length}</div>
           </div>
-          <div style={{ flex:1, background:C.card, border:`2px solid ${C.border}`, borderRadius:C.radius, padding:"14px 18px", textAlign:"center" }}>
-            <div style={{ color:C.gray, fontSize:13, fontFamily:FB }}>Revealed</div>
-            <div style={{ fontFamily:FC, fontSize:36, fontWeight:800, color:C.success }}>{revealed.length}</div>
+          <div style={{ flex:1, background:C.card, border:`2px solid ${C.gold}`, borderRadius:C.radius, padding:"14px 18px", textAlign:"center" }}>
+            <div style={{ color:C.gray, fontSize:13, fontFamily:FB }}>Won today</div>
+            <div style={{ fontFamily:FC, fontSize:36, fontWeight:800, color:C.gold }}>{previousWinners.size}</div>
           </div>
         </div>
+
+        {/* All members have won warning */}
+        {pool.length > 0 && eligiblePool.length === 0 && (
+          <div style={{ background:"rgba(245,197,24,.08)", border:`2px solid ${C.gold}`, borderRadius:C.radius,
+            padding:28, textAlign:"center", fontFamily:FB }}>
+            <div style={{ fontSize:40, marginBottom:10 }}>🏆</div>
+            <div style={{ color:C.gold, fontSize:18, fontWeight:600 }}>All present members have won today!</div>
+            <div style={{ color:C.gray, fontSize:14, marginTop:6 }}>Use Full Reset below to start over with everyone eligible again.</div>
+          </div>
+        )}
 
         {/* No attendance warning */}
         {pool.length === 0 && (
@@ -418,20 +437,22 @@ function DrawingScreen({ onBack }) {
         )}
 
         {/* Ready state instructions */}
-        {phase === "ready" && pool.length > 0 && (
+        {phase === "ready" && eligiblePool.length > 0 && (
           <div style={{ background:C.card, border:`2px solid ${C.border}`, borderRadius:C.radius,
             padding:"22px 24px", textAlign:"center", fontFamily:FB }}>
             <div style={{ fontSize:36, marginBottom:10 }}>🎰</div>
             <div style={{ color:C.white, fontSize:17, marginBottom:6 }}>
-              Ready to draw <strong style={{color:C.gold}}>{drawCount}</strong> winner{drawCount!==1?"s":""} from <strong style={{color:C.white}}>{pool.length}</strong> present members
+              Ready to draw <strong style={{color:C.gold}}>{drawCount}</strong> winner{drawCount!==1?"s":""} from <strong style={{color:C.white}}>{eligiblePool.length}</strong> eligible members
             </div>
-            <div style={{ color:C.gray, fontSize:13 }}>10% of today's attendance, rounded to nearest whole number</div>
+            <div style={{ color:C.gray, fontSize:13 }}>
+              10% of eligible attendance{previousWinners.size > 0 ? ` · ${previousWinners.size} already won this session` : ""}
+            </div>
           </div>
         )}
 
         {/* Action buttons */}
         <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
-          {pool.length > 0 && (phase === "ready" || phase === "done") && (
+          {eligiblePool.length > 0 && (phase === "ready" || phase === "done") && (
             <button onClick={startDraw} style={{
               flex:2, minWidth:200, padding:"20px 24px",
               background:`linear-gradient(135deg,${C.gold},${C.goldDk || "#c9a214"})`,
@@ -452,9 +473,17 @@ function DrawingScreen({ onBack }) {
               background:C.card2, border:`2px solid ${C.border}`,
               borderRadius:C.radius, fontFamily:FC, fontWeight:700, fontSize:20,
               cursor:"pointer", color:C.gray, touchAction:"manipulation",
-            }}>↺ Reset</button>
+            }}>↺ Reset Draw</button>
           )}
         </div>
+        {previousWinners.size > 0 && (
+          <button onClick={() => { setPreviousWinners(new Set()); setPhase("ready"); setWinners([]); setRevealed([]); setSpinning(""); setSpinIdx(0); }}
+            style={{ width:"100%", padding:"14px 16px", background:"rgba(184,50,50,.12)",
+              border:`2px solid ${C.danger}`, borderRadius:C.radius, fontFamily:FB,
+              fontWeight:600, fontSize:16, cursor:"pointer", color:C.danger, touchAction:"manipulation" }}>
+            ✕ Full Reset — Clear All Winners &amp; Start Over
+          </button>
+        )}
 
       </div>
     </div>
@@ -462,21 +491,21 @@ function DrawingScreen({ onBack }) {
 }
 
 // ─── Home Screen ──────────────────────────────────────────────────────────────
-function HomeScreen({ boardCount, generalCount, generalApiState, onNav }) {
-  const Btn = ({ icon, label, sub, warn, target }) => (
+function HomeScreen({ boardCount, generalCount, onNav }) {
+  const Btn = ({ icon, label, sub, warn, target, compact }) => (
     <button onClick={() => onNav(target)} style={{
       background:`linear-gradient(160deg,${C.card2} 0%,#0c1b30 100%)`,
-      border:`2.5px solid ${warn ? C.warn : C.gold}`, borderRadius:C.radius,
-      padding:"26px 22px", cursor:"pointer", width:"100%", textAlign:"left",
+      border:`2.5px solid ${warn ? C.warn : compact ? C.border : C.gold}`, borderRadius:C.radius,
+      padding: compact ? "14px 22px" : "26px 22px", cursor:"pointer", width:"100%", textAlign:"left",
       boxShadow:"0 6px 24px rgba(0,0,0,.45)", touchAction:"manipulation",
     }}
       onPointerDown={e => e.currentTarget.style.transform="scale(.97)"}
       onPointerUp={e => e.currentTarget.style.transform=""}
       onPointerLeave={e => e.currentTarget.style.transform=""}
     >
-      <div style={{ fontSize:40 }}>{icon}</div>
-      <div style={{ fontFamily:FC, fontWeight:800, fontSize:30, color:C.white, marginTop:10 }}>{label}</div>
-      <div style={{ color: warn ? C.warn : C.gray, fontSize:14, marginTop:6, fontFamily:FB }}>{sub}</div>
+      <div style={{ fontSize: compact ? 24 : 40, display:"inline" }}>{icon}</div>
+      <div style={{ fontFamily:FC, fontWeight:800, fontSize: compact ? 22 : 30, color: compact ? C.gray : C.white, marginTop: compact ? 4 : 10 }}>{label}</div>
+      <div style={{ color: warn ? C.warn : C.gray, fontSize:13, marginTop:3, fontFamily:FB }}>{sub}</div>
     </button>
   );
 
@@ -490,16 +519,10 @@ function HomeScreen({ boardCount, generalCount, generalApiState, onNav }) {
           sub={boardCount ? `${boardCount} board members loaded` : "⚠ No members loaded — visit Admin"}
           warn={!boardCount} target="board" />
         <Btn icon="🦁" label="General Membership Attendance"
-          sub={
-            generalApiState === "loading" ? "⏳ Loading members from server…" :
-            generalApiState === "server-loading" ? "⏳ Server loading Neon data, please wait…" :
-            generalApiState === "error" ? "⚠ Could not load members — check server" :
-            generalCount ? `${generalCount} members loaded` : "⚠ No members loaded"
-          }
-          warn={generalApiState === "error" || (!generalCount && generalApiState === "ready")}
-          target="general" />
-        <Btn icon="⚙️" label="Admin" sub="Upload lists · View records · Export CSV" target="admin" />
+          sub={generalCount ? `${generalCount} members loaded` : "⚠ No members loaded — visit Admin"}
+          warn={!generalCount} target="general" />
         <Btn icon="🎰" label="Member Drawing" sub="Random 10% drawing from today's general attendance" target="drawing" />
+        <Btn icon="⚙️" label="Admin" sub="Upload lists · View records · Export CSV" target="admin" compact />
         <div style={{ textAlign:"center", color:"#263c5c", fontSize:13, fontFamily:FB, marginTop:14 }}>
           We Serve · Shakopee Lions Club · Est. 1962
         </div>
@@ -607,15 +630,11 @@ function AttendanceScreen({ mode, members, onBack }) {
               onPointerUp={e => e.currentTarget.style.transform=""}
               onPointerLeave={e => e.currentTarget.style.transform=""}
             >
-              <div style={{ flex:1 }}>
+              <div>
                 <div style={{ fontFamily:FC, fontWeight:700, fontSize:28, color:C.white }}>{fn}</div>
-                <div style={{ display:"flex", gap:8, marginTop:4, flexWrap:"wrap", alignItems:"center" }}>
-                  {m.cash && <span style={{ background:"rgba(245,197,24,.15)", border:`1px solid ${C.gold}`, color:C.gold, fontSize:11, padding:"2px 9px", borderRadius:20, fontFamily:FB, fontWeight:700 }}>CASH/CHECK</span>}
-                  {m.membershipStatus === "expired" && <span style={{ background:"rgba(184,50,50,.15)", border:`1px solid ${C.danger}`, color:C.danger, fontSize:11, padding:"2px 9px", borderRadius:20, fontFamily:FB, fontWeight:700 }}>DUES OVERDUE</span>}
-                  {already && <span style={{ color:C.warn, fontSize:12, fontFamily:FB }}>Already checked in — tap to log duplicate</span>}
-                </div>
+                {already && <div style={{ color:C.warn, fontSize:13, marginTop:2, fontFamily:FB }}>Already checked in — tap to log duplicate</div>}
               </div>
-              <div style={{ fontSize:30, marginLeft:12, flexShrink:0 }}>{already ? "⚠️" : "✓"}</div>
+              <div style={{ fontSize:30, marginLeft:12 }}>{already ? "⚠️" : "✓"}</div>
             </button>
           );
         })}
@@ -638,12 +657,12 @@ function AttendanceScreen({ mode, members, onBack }) {
 }
 
 // ─── Admin Screen ─────────────────────────────────────────────────────────────
-function AdminScreen({ boardMembers, setBoardMembers, onBack }) {
+function AdminScreen({ boardMembers, setBoardMembers, generalMembers, setGeneralMembers, onBack }) {
   const PIN = "1962";
   const [pin, setPin] = useState("");
   const [authed, setAuthed] = useState(false);
   const [pinError, setPinError] = useState(false);
-  const [tab, setTab] = useState("upload");
+  const [tab, setTab] = useState("records");
   const [attendance, setAttendance] = useState(() => loadLS(SK.attendance) || []);
   const [fType, setFType] = useState("all");
   const [fDate, setFDate] = useState("");
@@ -651,6 +670,7 @@ function AdminScreen({ boardMembers, setBoardMembers, onBack }) {
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [bStatus, setBStatus] = useState("");
+  const [gStatus, setGStatus] = useState("");
 
   const tryLogin = useCallback(() => {
     if (pin === PIN) { setAuthed(true); setPinError(false); }
@@ -660,13 +680,14 @@ function AdminScreen({ boardMembers, setBoardMembers, onBack }) {
   // Auto-submit when 4 digits entered
   useEffect(() => { if (pin.length === 4) tryLogin(); }, [pin]);
 
-  const doUpload = (file) => {
+  const doUpload = (type, file) => {
     if (!file) return;
     parseFile(file, rows => {
       const ud = getToday();
-      const list = parseBoardRows(rows, ud);
+      const list = type === "board" ? parseBoardRows(rows, ud) : parseGeneralRows(rows, ud);
       if (!list.length) { setToast({ msg:"No members found — check file format", type:"danger" }); return; }
-      setBoardMembers(list); saveLS(SK.board, list); setBStatus(`✅ ${list.length} board members loaded on ${ud}`);
+      if (type === "board") { setBoardMembers(list); saveLS(SK.board, list); setBStatus(`✅ ${list.length} board members loaded on ${ud}`); }
+      else { setGeneralMembers(list); saveLS(SK.general, list); setGStatus(`✅ ${list.length} general members loaded on ${ud}`); }
       setToast({ msg:`${list.length} members imported!`, type:"success" });
     });
   };
@@ -690,9 +711,10 @@ function AdminScreen({ boardMembers, setBoardMembers, onBack }) {
     </button>
   );
 
-  const doExportBoardMembers = () => {
-    exportCSV(boardMembers.map(m => ({ "First Name":m.firstName,"Last Name":m.lastName,"Full Name":fullName(m),"Upload Batch Date":m.uploadBatchDate })),
-      `board_members_${getToday().replace(/\//g,"-")}.csv`);
+  const doExportMembers = (type) => {
+    const list = type === "board" ? boardMembers : generalMembers;
+    exportCSV(list.map(m => ({ "First Name":m.firstName,"Last Name":m.lastName,"Full Name":fullName(m),"Upload Batch Date":m.uploadBatchDate })),
+      `${type}_members_${getToday().replace(/\//g,"-")}.csv`);
   };
 
   // PIN login screen
@@ -748,35 +770,33 @@ function AdminScreen({ boardMembers, setBoardMembers, onBack }) {
 
         {tab === "upload" && (
           <>
-            <div style={{ background:C.card, border:`2px solid ${C.border}`, borderRadius:C.radius, padding:22 }}>
-              <div style={{ fontFamily:FC, fontWeight:800, fontSize:22, color:C.gold, marginBottom:4 }}>Board Meeting Member List</div>
-              <div style={{ color:C.gray, fontSize:14, marginBottom:12, fontFamily:FB }}>
-                {boardMembers.length ? `${boardMembers.length} members currently loaded` : "No members loaded"}
+            {[
+              { type:"board", label:"Board Meeting Member List", status:bStatus, count:boardMembers.length },
+              { type:"general", label:"General Membership List", status:gStatus, count:generalMembers.length },
+            ].map(({ type, label, status, count }) => (
+              <div key={type} style={{ background:C.card, border:`2px solid ${C.border}`, borderRadius:C.radius, padding:22 }}>
+                <div style={{ fontFamily:FC, fontWeight:800, fontSize:22, color:C.gold, marginBottom:4 }}>{label}</div>
+                <div style={{ color:C.gray, fontSize:14, marginBottom:12, fontFamily:FB }}>
+                  {count ? `${count} members currently loaded` : "No members loaded"}
+                </div>
+                {status && <div style={{ color:C.success, fontSize:14, marginBottom:12, fontFamily:FB }}>{status}</div>}
+                <label style={{ display:"block", background:C.card2, border:`2px dashed ${C.border}`,
+                  borderRadius:10, padding:"22px", textAlign:"center", cursor:"pointer" }}>
+                  <div style={{ fontSize:36, marginBottom:6 }}>📁</div>
+                  <div style={{ color:C.white, fontWeight:600, fontSize:16, fontFamily:FB }}>Tap to Upload CSV or Excel</div>
+                  <div style={{ color:C.gray, fontSize:13, marginTop:4, fontFamily:FB }}>Accepts .csv, .xlsx, .xls</div>
+                  <input type="file" accept=".csv,.xlsx,.xls" style={{ display:"none" }}
+                    onChange={e => { doUpload(type, e.target.files[0]); e.target.value=""; }} />
+                </label>
+                {count > 0 && (
+                  <button onClick={() => doExportMembers(type)} style={{ marginTop:14, width:"100%",
+                    padding:"12px", background:C.card2, border:`2px solid ${C.border}`, color:C.white,
+                    borderRadius:10, fontFamily:FB, fontSize:15, cursor:"pointer", fontWeight:600, touchAction:"manipulation" }}>
+                    ⬇️ Export Member List to CSV
+                  </button>
+                )}
               </div>
-              {bStatus && <div style={{ color:C.success, fontSize:14, marginBottom:12, fontFamily:FB }}>{bStatus}</div>}
-              <label style={{ display:"block", background:C.card2, border:`2px dashed ${C.border}`,
-                borderRadius:10, padding:"22px", textAlign:"center", cursor:"pointer" }}>
-                <div style={{ fontSize:36, marginBottom:6 }}>📁</div>
-                <div style={{ color:C.white, fontWeight:600, fontSize:16, fontFamily:FB }}>Tap to Upload CSV or Excel</div>
-                <div style={{ color:C.gray, fontSize:13, marginTop:4, fontFamily:FB }}>Accepts .csv, .xlsx, .xls</div>
-                <input type="file" accept=".csv,.xlsx,.xls" style={{ display:"none" }}
-                  onChange={e => { doUpload(e.target.files[0]); e.target.value=""; }} />
-              </label>
-              {boardMembers.length > 0 && (
-                <button onClick={doExportBoardMembers} style={{ marginTop:14, width:"100%",
-                  padding:"12px", background:C.card2, border:`2px solid ${C.border}`, color:C.white,
-                  borderRadius:10, fontFamily:FB, fontSize:15, cursor:"pointer", fontWeight:600, touchAction:"manipulation" }}>
-                  ⬇️ Export Board Member List to CSV
-                </button>
-              )}
-            </div>
-
-            <div style={{ background:C.card, border:`2px solid ${C.border}`, borderRadius:C.radius, padding:22 }}>
-              <div style={{ fontFamily:FC, fontWeight:800, fontSize:22, color:C.gold, marginBottom:4 }}>General Membership List</div>
-              <div style={{ color:C.gray, fontSize:14, fontFamily:FB }}>
-                Loaded automatically from the member database. No upload needed.
-              </div>
-            </div>
+            ))}
 
             <div style={{ background:C.card, border:`2px solid ${C.danger}`, borderRadius:C.radius, padding:22 }}>
               <div style={{ fontFamily:FC, fontWeight:800, fontSize:20, color:C.danger, marginBottom:14 }}>⚠️ Danger Zone</div>
@@ -873,42 +893,6 @@ export default function App() {
   const [screen, setScreen] = useState("home");
   const [boardMembers, setBoardMembers] = useState(() => loadLS(SK.board) || []);
   const [generalMembers, setGeneralMembers] = useState(() => loadLS(SK.general) || []);
-  const [generalApiState, setGeneralApiState] = useState("idle");
-
-  useEffect(() => {
-    let cancelled = false;
-    let timer = null;
-
-    async function load() {
-      setGeneralApiState("loading");
-      try {
-        const res = await fetch("/attendance/members");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (cancelled) return;
-        if (data.status === "loading") {
-          setGeneralApiState("server-loading");
-          timer = setTimeout(load, 6000);
-          return;
-        }
-        setGeneralMembers(data.members);
-        saveLS(SK.general, data.members);
-        setGeneralApiState("ready");
-      } catch {
-        if (cancelled) return;
-        const cached = loadLS(SK.general);
-        if (cached?.length) {
-          setGeneralMembers(cached);
-          setGeneralApiState("ready");
-        } else {
-          setGeneralApiState("error");
-        }
-      }
-    }
-
-    load();
-    return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, []);
 
   if (screen === "board")
     return <AttendanceScreen mode="board" members={boardMembers} onBack={() => setScreen("home")} />;
@@ -917,13 +901,10 @@ export default function App() {
   if (screen === "admin")
     return <AdminScreen
       boardMembers={boardMembers} setBoardMembers={setBoardMembers}
+      generalMembers={generalMembers} setGeneralMembers={setGeneralMembers}
       onBack={() => setScreen("home")} />;
   if (screen === "drawing")
     return <DrawingScreen onBack={() => setScreen("home")} />;
 
-  return <HomeScreen
-    boardCount={boardMembers.length}
-    generalCount={generalMembers.length}
-    generalApiState={generalApiState}
-    onNav={setScreen} />;
+  return <HomeScreen boardCount={boardMembers.length} generalCount={generalMembers.length} onNav={setScreen} />;
 }
