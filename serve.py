@@ -480,6 +480,9 @@ class Handler(BaseHTTPRequestHandler):
             with urllib.request.urlopen(req) as resp:
                 data = resp.read()
                 print(f"  OK {resp.status}")
+                if method in ('PATCH', 'POST', 'PUT'):
+                    print(f"  Body sent: {body.decode('utf-8','replace') if body else '(none)'}")
+                    print(f"  Response: {data.decode('utf-8','replace')[:500]}")
                 self.send_response(resp.status)
                 self.send_cors_headers()
                 self.send_header("Content-Type", "application/json")
@@ -487,7 +490,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(data)
         except urllib.error.HTTPError as e:
             data = e.read()
-            print(f"  ERROR {e.code}: {data.decode('utf-8','replace')[:200]}")
+            print(f"  ERROR {e.code}: {data.decode('utf-8','replace')[:500]}")
             self.send_response(e.code)
             self.send_cors_headers()
             self.send_header("Content-Type", "application/json")

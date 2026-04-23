@@ -835,15 +835,19 @@ async function saveMember() {
   const exitStatus = document.getElementById('modal-exit-status').value;
   const exitDate  = document.getElementById('modal-exit-date').value;
 
+  // Yes/No fields in Neon are option-type — must use optionValues, not value
+  const yesNo = (checked) => checked ? [{ name: 'Yes' }] : [];
   const accountCustomFields = [];
-  if (customFieldIds.hardship)   accountCustomFields.push({ id: parseInt(customFieldIds.hardship),   value: hardship ? 'Yes' : '' });
-  if (customFieldIds.cash)       accountCustomFields.push({ id: parseInt(customFieldIds.cash),        value: cash ? 'Yes' : '' });
+  if (customFieldIds.hardship)   accountCustomFields.push({ id: parseInt(customFieldIds.hardship),   optionValues: yesNo(hardship) });
+  if (customFieldIds.cash)       accountCustomFields.push({ id: parseInt(customFieldIds.cash),        optionValues: yesNo(cash) });
   if (customFieldIds.exitStatus) accountCustomFields.push({ id: parseInt(customFieldIds.exitStatus),  value: exitStatus });
   if (customFieldIds.exitDate)   accountCustomFields.push({ id: parseInt(customFieldIds.exitDate),    value: exitDate });
 
   try {
     const res = await neonPatch(`/accounts/${editingMember.id}`, { individualAccount: { accountCustomFields } });
-    if (!res.ok) throw new Error(await res.text());
+    const body = await res.json().catch(() => null);
+    const neonErrors = body?.errors || (Array.isArray(body) && body[0]?.code ? body : null);
+    if (!res.ok || neonErrors) throw new Error(JSON.stringify(neonErrors || body));
     editingMember.hardship    = hardship;
     editingMember.cash        = cash;
     editingMember.exitStatus  = exitStatus;
