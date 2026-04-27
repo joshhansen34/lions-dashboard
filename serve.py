@@ -344,11 +344,11 @@ def do_load_members():
                 latest = sorted(mems, key=lambda m: m.get('termEndDate') or '', reverse=True)[0]
                 target = active or latest
                 term_end = target.get('termEndDate', '') or ''
-                # Card failed on auto-renewal: isActive=False but term end is still future
-                payment_failed = (not active) and bool(term_end) and term_end > time.strftime('%Y-%m-%d')
+                # Card failed: no active membership, but latest has autoRenewal + future termEndDate
+                payment_failed = (not active) and bool(term_end) and term_end > time.strftime('%Y-%m-%d') and bool(target.get('autoRenewal'))
                 batch[j]['membershipType']   = (target.get('membershipLevel') or {}).get('name', '') or ''
                 batch[j]['membershipExpiry'] = term_end
-                batch[j]['membershipStatus'] = 'current' if (active or payment_failed) else 'expired'
+                batch[j]['membershipStatus'] = 'current' if active else 'expired'
                 batch[j]['paymentFailed']    = payment_failed
                 batch[j]['autoRenewal']      = bool((active or target).get('autoRenewal', False))
                 del batch[j]['_status']
