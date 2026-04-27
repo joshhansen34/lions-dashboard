@@ -328,6 +328,14 @@ def do_load_members():
                 memberships_list = list(ex.map(fetch_one_memberships, aids))
             for j, mems in enumerate(memberships_list):
                 if not mems:
+                    # Membership fetch failed or returned nothing — keep member using account-level status
+                    batch[j]['membershipType']   = ''
+                    batch[j]['membershipExpiry'] = ''
+                    # _status already set from account data; membershipStatus already set
+                    batch[j]['autoRenewal']      = False
+                    del batch[j]['_status']
+                    del batch[j]['_active']
+                    confirmed.append(batch[j])
                     continue
                 active = next((m for m in mems if m.get('isActive') and m.get('primaryActiveMembership')), None)
                 if not active:
