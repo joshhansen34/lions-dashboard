@@ -81,6 +81,7 @@
   .badge-exited { background: rgba(138,155,176,0.15); color: var(--gray); border: 1px solid rgba(138,155,176,0.3); }
   .badge-autorenew { background: rgba(39,174,96,0.12); color: var(--green); border: 1px solid rgba(39,174,96,0.25); }
   .badge-noauto { background: rgba(230,126,34,0.12); color: var(--amber); border: 1px solid rgba(230,126,34,0.25); }
+  .badge-payment-failed { background: rgba(192,57,43,0.12); color: var(--red); border: 1px solid rgba(192,57,43,0.3); }
   .flags-cell { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
   .type-pill { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--gray); background: var(--navy-light); padding: 2px 7px; border-radius: 2px; }
 
@@ -575,6 +576,7 @@ function renderTable() {
     const flags = [];
     if (m.hardship) flags.push(`<span class="badge badge-hardship">Hardship</span>`);
     if (m.cash) flags.push(`<span class="badge badge-cash">Cash/Check</span>`);
+    if (m.paymentFailed) flags.push(`<span class="badge badge-payment-failed">Card Failed</span>`);
     if (!m.exitStatus && !m.cash) {
       if (m.autoRenewal) flags.push(`<span class="badge badge-autorenew">↻ Auto-Renew</span>`);
       else flags.push(`<span class="badge badge-noauto">Manual Online</span>`);
