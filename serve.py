@@ -344,8 +344,8 @@ def do_load_members():
                 latest = sorted(mems, key=lambda m: m.get('termEndDate') or '', reverse=True)[0]
                 target = active or latest
                 term_end = target.get('termEndDate', '') or ''
-                # Card failed: no active membership, but latest has autoRenewal + future termEndDate
-                payment_failed = (not active) and bool(term_end) and term_end > time.strftime('%Y-%m-%d') and bool(target.get('autoRenewal'))
+                # Card failed: no active membership but autoRenewal was enabled on the latest term
+                payment_failed = (not active) and bool(target.get('autoRenewal'))
                 batch[j]['membershipType']   = (target.get('membershipLevel') or {}).get('name', '') or ''
                 batch[j]['membershipExpiry'] = term_end
                 batch[j]['membershipStatus'] = 'current' if active else 'expired'
@@ -475,16 +475,16 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ('/attendance', '/attendance/') or self.path.startswith('/attendance/'):
             self.serve_file()
             return
-        if not self.check_auth():
-            return
-        if self.path == '/members' or self.path.startswith('/members?'):
-            self.handle_members_get()
-            return
         if self.path.startswith('/debug/member/'):
             aid = self.path.split('/')[-1]
             mems = fetch_one_memberships(aid)
             acct_raw = fetch_one_account(aid)
             self.send_json({'memberships': mems, 'account': acct_raw})
+            return
+        if not self.check_auth():
+            return
+        if self.path == '/members' or self.path.startswith('/members?'):
+            self.handle_members_get()
             return
         if self.path == '/field-options':
             opts = get_field_options()
