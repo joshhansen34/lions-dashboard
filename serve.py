@@ -480,6 +480,12 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == '/members' or self.path.startswith('/members?'):
             self.handle_members_get()
             return
+        if self.path.startswith('/debug/member/'):
+            aid = self.path.split('/')[-1]
+            mems = fetch_one_memberships(aid)
+            acct_raw = fetch_one_account(aid)
+            self.send_json({'memberships': mems, 'account': acct_raw})
+            return
         if self.path == '/field-options':
             opts = get_field_options()
             if not opts:
