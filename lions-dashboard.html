@@ -577,7 +577,7 @@ function renderTable() {
     if (m.cash) flags.push(`<span class="badge badge-cash">Cash/Check</span>`);
     if (!m.exitStatus && !m.cash) {
       if (m.autoRenewal) flags.push(`<span class="badge badge-autorenew">↻ Auto-Renew</span>`);
-      else flags.push(`<span class="badge badge-noauto">Manual</span>`);
+      else flags.push(`<span class="badge badge-noauto">Manual Online</span>`);
     }
 
     let expiryCell;
